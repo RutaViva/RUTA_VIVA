@@ -6,6 +6,7 @@ from config import (
     VELOCIDAD_MIN_KMH, VELOCIDAD_MAX_KMH,
     PROBABILIDADES_TRANSICION,
 )
+from zone_locator import ZoneLocator
 
 class Vehiculo:
     def __init__(
@@ -15,11 +16,13 @@ class Vehiculo:
         latitude: float,
         longitude: float,
         status: str,
+        zone_locator: ZoneLocator,
     ):
         self.id = vehicle_id
         self.zone_id = zone_id
         self.lat = latitude
         self.lon = longitude
+        self.zone_locator = zone_locator
         # Velocidad y dirección en radianes
         self.velocidad_kmh = random.uniform(VELOCIDAD_MIN_KMH, VELOCIDAD_MAX_KMH)
         self.direccion = random.uniform(0, 2 * 3.14159)
@@ -29,9 +32,11 @@ class Vehiculo:
         """Avanza el vehículo un paso de simulación."""
         # 1. Actualizar posición según velocidad y dirección
         self._mover(intervalo_segundos)
-        # 2. Gestionar transición de estado
+        # 2. Mantener la zona sincronizada con las coordenadas actuales
+        self.zone_id = self.zone_locator.locate(self.lat, self.lon, self.zone_id)
+        # 3. Gestionar transición de estado
         self._transicionar_estado()
-        # 3. Variar ligeramente la velocidad (tráfico, semáforos)
+        # 4. Variar ligeramente la velocidad (tráfico, semáforos)
         self.velocidad_kmh = max(
             VELOCIDAD_MIN_KMH,
             min(VELOCIDAD_MAX_KMH, self.velocidad_kmh + random.uniform(-5, 5))

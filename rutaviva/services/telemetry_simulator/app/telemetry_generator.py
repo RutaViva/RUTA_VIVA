@@ -5,6 +5,7 @@ from config import INTERVALO_TELEMETRIA, TAMANO_LOTE
 from vehicle import Vehiculo
 from rabbit_publisher import RabbitPublisher
 from vehicle_repository import cargar_estados_iniciales
+from zone_locator import ZoneLocator
 
 logging.basicConfig(
     level=logging.INFO,
@@ -17,7 +18,11 @@ async def bucle_simulacion():
     """Bucle principal: genera telemetría y la publica cada 15 segundos."""
     # 1. Inicializar vehículos con los IDs y el último estado guardado por el seeder
     estados_iniciales = cargar_estados_iniciales()
-    vehiculos = [Vehiculo(**estado) for estado in estados_iniciales]
+    zone_locator = ZoneLocator()
+    vehiculos = [
+        Vehiculo(**estado, zone_locator=zone_locator)
+        for estado in estados_iniciales
+    ]
     total_vehiculos = len(vehiculos)
     logger.info("Cargados %s vehículos desde vehicle_state.", total_vehiculos)
 
