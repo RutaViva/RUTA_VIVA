@@ -8,6 +8,7 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
+    "aio-pika>=10.1.1",
     "alembic>=1.20.0",
     "faker>=40.41.0",
     "fastapi>=0.143.0",
