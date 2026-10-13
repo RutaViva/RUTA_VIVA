@@ -15,7 +15,7 @@ from sqlalchemy import select, func
 from .models import Driver, Vehicle, Zone
 
 from .database import SessionLocal, clean_database, engine
-from .seed_cli.app.seeder import (
+from .seeder import (
     apply_driver_status,
     generate_drivers,
     generate_licenses,
