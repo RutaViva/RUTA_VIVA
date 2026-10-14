@@ -18,7 +18,38 @@ Motor asíncrono en Python que emula la cinemática de ~8,000 vehículos y emite
 
 ---
 
-## 2. Contrato del Mensaje JSON
+## 2. Arquitectura y Flujo de Ejecución
+
+```mermaid
+flowchart TD
+    subgraph Inicializacion ["1. Inicialización del Módulo"]
+        DB[("PostgreSQL<br/>(vehicle_state)")] -->|"Cargar último estado"| Repo["vehicle_repository.py"]
+        Repo --> Init["telemetry_generator.py"]
+        Shape["taxi_zones.shp"] --> ZL["ZoneLocator<br/>(R-Tree espacial GeoPandas)"]
+        Init --> ZL
+        Init --> Defects["defects.py<br/>plan_defects()"]
+    end
+
+    subgraph BucleSimulacion ["2. Bucle de Simulación (cada 15s)"]
+        Init --> Tick["Vehiculo.tick()"]
+        Tick --> Move["Cinemática + Rebote urbano"]
+        Tick --> State["Transición de Estados (Markov)"]
+        Tick --> Locate["Localizar Zona Actual"]
+        
+        Init --> Filter{"¿Defectos Activos?<br/>(t >= DEFECT_DELAY_SECONDS)"}
+        Filter -->|"En silent_ids (5%)"| Omit["Omitir del envío<br/>(Vehículo silencioso)"]
+        Filter -->|"En out_of_city_ids (3%)"| Anomalous["to_payload(override_coords)<br/>(Coordenadas fuera de ciudad)"]
+        Filter -->|"Flota normal (92%)"| Normal["to_payload()<br/>(Coordenadas válidas)"]
+        
+        Anomalous --> Batch["Agrupación en lotes<br/>(500 mensajes)"]
+        Normal --> Batch
+        Batch --> RMQ[("RabbitMQ<br/>Exchange: telemetria.viajes<br/>Cola: telemetria.vehiculos")]
+    end
+```
+
+---
+
+## 3. Contrato del Mensaje JSON
 
 Los mensajes emitidos hacia el exchange `telemetria.viajes` cumplen con el siguiente contrato:
 
@@ -35,7 +66,7 @@ Los mensajes emitidos hacia el exchange `telemetria.viajes` cumplen con el sigui
 
 ---
 
-## 3. Pruebas Automatizadas
+## 4. Pruebas Automatizadas
 
 ```bash
 pytest services/telemetry_simulator/tests/ -v

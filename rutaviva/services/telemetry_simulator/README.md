@@ -34,8 +34,8 @@ Esta implementación cubre de forma directa las siguientes tareas técnicas asig
 ### 🔹 `RWI-38` — *movement generator within zone polygons*
 - **Descripción de la tarea**: Implementar un generador de movimiento que desplace a cada vehículo de la flota manteniendo sus coordenadas físicas sincronizadas y contenidas dentro de los polígonos de zonas válidas de la ciudad.
 - **Implementación**:
-  - `vehicle.py`: Modela el desplazamiento cinemático según velocidad variable ($5\text{ a }60\text{ km/h}$) y rumbo con pequeñas perturbaciones angulares y rebote reflexivo ante fronteras de la ciudad.
-  - `zone_locator.py`: Utiliza la geometría oficial de la TLC (`taxi_zones.shp`) indexada espacialmente con R-Tree (`GeoPandas`). En cada tick evalúa el punto $(lat, lon)$ para asignar el `zone_id` exacto.
+  - `vehicle.py`: Modela el desplazamiento cinemático según velocidad variable (5 a 60 km/h) y rumbo con pequeñas perturbaciones angulares y rebote reflexivo ante fronteras de la ciudad.
+  - `zone_locator.py`: Utiliza la geometría oficial de la TLC (`taxi_zones.shp`) indexada espacialmente con R-Tree (`GeoPandas`). En cada tick evalúa el punto (lat, lon) para asignar el `zone_id` exacto.
 - **Prueba asociada**: `test_los_vehiculos_siempre_se_mueven_dentro_de_la_ciudad` en `tests/test_simulator.py`.
 
 ### 🔹 `RWI-39` — *free/occupied/out-of-service state machine*
@@ -49,7 +49,7 @@ Esta implementación cubre de forma directa las siguientes tareas técnicas asig
 - **Descripción de la tarea**: Implementar la inyección controlada de defectos de calidad: un porcentaje configurable de vehículos que deja de reportar telemetría y otro porcentaje que reporta coordenadas inválidas fuera del área metropolitana.
 - **Implementación**:
   - `config.py`: Parámetros `SILENT_VEHICLES_PCT`, `OUT_OF_CITY_PCT`, `DEFECT_DELAY_SECONDS` y delimitación geográfica exterior `[39.00, 39.50]` lat / `[-73.00, -72.00]` lon.
-  - `defects.py`: Función pura `plan_defects()` que garantiza particiones reproducibles y **estrictamente disjuntas** (`silent_ids` $\cap$ `out_of_city_ids` $= \emptyset$), y `out_of_city_position()`.
+  - `defects.py`: Función pura `plan_defects()` que garantiza particiones reproducibles y **estrictamente disjuntas** (`silent_ids` ∩ `out_of_city_ids` = ∅), y `out_of_city_position()`.
   - `telemetry_generator.py`: Aplica el filtro condicional en cada ciclo una vez transcurrido el retardo inicial.
 - **Pruebas asociadas**: `test_porcentajes_de_defectos_son_exactos_y_disjuntos` y `test_coordenadas_defectuosas_quedan_fuera_de_la_ciudad` en `tests/test_simulator.py`.
 
@@ -60,34 +60,34 @@ Esta implementación cubre de forma directa las siguientes tareas técnicas asig
 
 ```mermaid
 flowchart TD
-    subgraph Inicialización
-        DB[(PostgreSQL)] -->|Cargar último estado| Repo[vehicle_repository.py]
-        Repo --> Init[telemetry_generator.py]
-        Shape[taxi_zones.shp] --> ZL[ZoneLocator\n(R-Tree espacial)]
+    subgraph Inicializacion ["1. Inicialización del Módulo"]
+        DB[("PostgreSQL<br/>(vehicle_state)")] -->|"Cargar último estado"| Repo["vehicle_repository.py"]
+        Repo --> Init["telemetry_generator.py"]
+        Shape["taxi_zones.shp"] --> ZL["ZoneLocator<br/>(R-Tree espacial GeoPandas)"]
         Init --> ZL
-        Init --> Defects[defects.py\nplan_defects()]
+        Init --> Defects["defects.py<br/>plan_defects()"]
     end
 
-    subgraph Bucle de Simulación c/ 15s
-        Init --> Tick[Vehiculo.tick()]
-        Tick --> Move[Cinemática + Rebote]
-        Tick --> State[Transición Markoviana]
-        Tick --> Locate[Localizar Zona Actual]
+    subgraph BucleSimulacion ["2. Bucle de Simulación (cada 15s)"]
+        Init --> Tick["Vehiculo.tick()"]
+        Tick --> Move["Cinemática + Rebote urbano"]
+        Tick --> State["Transición de Estados (Markov)"]
+        Tick --> Locate["Localizar Zona Actual"]
         
-        Init --> Filter{¿Defectos Activos?\n(t >= delay)}
-        Filter -->|En silent_ids| Omit[Omitir del envío\n(Vehículo silencioso)]
-        Filter -->|En out_of_city_ids| Anomalous[to_payload(override_coords)]
-        Filter -->|Flota normal| Normal[to_payload()]
+        Init --> Filter{"¿Defectos Activos?<br/>(t >= DEFECT_DELAY_SECONDS)"}
+        Filter -->|"En silent_ids (5%)"| Omit["Omitir del envío<br/>(Vehículo silencioso)"]
+        Filter -->|"En out_of_city_ids (3%)"| Anomalous["to_payload(override_coords)<br/>(Coordenadas fuera de ciudad)"]
+        Filter -->|"Flota normal (92%)"| Normal["to_payload()<br/>(Coordenadas válidas)"]
         
-        Anomalous --> Batch[Lotes de 500 msgs]
+        Anomalous --> Batch["Agrupación en lotes<br/>(500 mensajes)"]
         Normal --> Batch
-        Batch --> RMQ[(RabbitMQ\ntelemetria.viajes)]
+        Batch --> RMQ[("RabbitMQ<br/>Exchange: telemetria.viajes<br/>Cola: telemetria.vehiculos")]
     end
 ```
 
 ---
 
-## 3. Registro de Cambios Realizados (Qué y Dónde se tocó)
+## 4. Registro de Cambios Realizados (Qué y Dónde se tocó)
 
 A continuación se detalla cada archivo tocado o creado y el motivo del cambio:
 
@@ -102,7 +102,7 @@ A continuación se detalla cada archivo tocado o creado y el motivo del cambio:
 
 ---
 
-## 4. Explicación Detallada del Nuevo Funcionamiento
+## 5. Explicación Detallada del Nuevo Funcionamiento
 
 ### A. Cinemática Normal y Mantenimiento dentro de Zonas
 1. Al arrancar, el simulador consulta la tabla `vehicle_state` en PostgreSQL a través de `vehicle_repository.py`.
@@ -114,10 +114,10 @@ A continuación se detalla cada archivo tocado o creado y el motivo del cambio:
 
 ### B. Inyección de Defectos de Calidad
 1. **Planificación Idempotente**: Antes de iniciar el bucle, `plan_defects()` baraja los IDs de vehículos y separa:
-   $$\text{Total vehículos} \times \frac{\text{SILENT\_PCT}}{100} \longrightarrow \text{Vehículos Silenciosos}$$
-   $$\text{Total vehículos} \times \frac{\text{OUT\_OF\_CITY\_PCT}}{100} \longrightarrow \text{Vehículos Fuera de Ciudad}$$
+   * `Total vehículos * (SILENT_VEHICLES_PCT / 100) ➔ Vehículos Silenciosos (5%)`
+   * `Total vehículos * (OUT_OF_CITY_PCT / 100) ➔ Vehículos Fuera de Ciudad (3%)`
 2. **Período de Calibración Inicial (`DEFECT_DELAY_SECONDS`)**:
-   Durante los primeros segundos (por defecto 60 segundos), todos los vehículos reportan normalmente. Esto permite que los consumidores (como el futuro worker de presión) reciban la flota completa y establezcan su línea base.
+   Durante los primeros segundos (por defecto 60 segundos), todos los vehículos reportan normalmente. Esto permite que los consumidores (como el worker de presión) reciban la flota completa y establezcan su línea base.
 3. **Disparo de Anomalías**:
    Una vez transcurrido el retardo, el generador activa los defectos:
    * **Silenciosos**: Si `v.id in defect_plan.silent_ids`, se omite en el payload. Al no reportar, el futuro worker detectará que `last_seen_at > 2 min` y lo marcará fuera de servicio (RN-10).
