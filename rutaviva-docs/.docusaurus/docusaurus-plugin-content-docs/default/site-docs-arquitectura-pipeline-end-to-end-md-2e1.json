@@ -1,0 +1,28 @@
+{
+  "id": "arquitectura/pipeline-end-to-end",
+  "title": "Pipeline End-to-End y Flujos de Datos",
+  "description": "El flujo de procesamiento de datos de RutaViva opera en dos velocidades sincronizadas: la Ruta Batch (Analítica) y la Ruta Casi Tiempo Real (Operacional).",
+  "source": "@site/docs/arquitectura/pipeline-end-to-end.md",
+  "sourceDirName": "arquitectura",
+  "slug": "/arquitectura/pipeline-end-to-end",
+  "permalink": "/docs/arquitectura/pipeline-end-to-end",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/docs/arquitectura/pipeline-end-to-end.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "pipeline-end-to-end",
+    "title": "Pipeline End-to-End y Flujos de Datos",
+    "sidebar_label": "Pipeline End-to-End"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Decisiones (ADRs)",
+    "permalink": "/docs/arquitectura/adrs"
+  },
+  "next": {
+    "title": "Puntos Abiertos & Tensiones",
+    "permalink": "/docs/arquitectura/puntos-abiertos-tensiones"
+  }
+}

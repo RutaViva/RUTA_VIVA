@@ -1,0 +1,28 @@
+{
+  "id": "modulos/telemetry-simulator",
+  "title": "Simulador de Telemetría GPS",
+  "description": "Motor asíncrono en Python que emula la cinemática de ~8,000 vehículos y emite pulsos de ubicación y estado cada 15 segundos hacia RabbitMQ.",
+  "source": "@site/docs/modulos/telemetry-simulator.md",
+  "sourceDirName": "modulos",
+  "slug": "/modulos/telemetry-simulator",
+  "permalink": "/docs/modulos/telemetry-simulator",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/docs/modulos/telemetry-simulator.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "telemetry-simulator",
+    "title": "Simulador de Telemetría GPS",
+    "sidebar_label": "Simulador Telemetría (telemetry_simulator/)"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Seed CLI (seed_cli/)",
+    "permalink": "/docs/modulos/seed-cli"
+  },
+  "next": {
+    "title": "Auditoría y Trazabilidad",
+    "permalink": "/docs/reglas-negocio/auditoria-trazabilidad"
+  }
+}

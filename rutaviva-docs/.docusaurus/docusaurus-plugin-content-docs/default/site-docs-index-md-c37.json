@@ -1,0 +1,29 @@
+{
+  "id": "index",
+  "title": "RutaViva Mobility · Portal de Documentación Técnica",
+  "description": "Bienvenido al centro oficial de documentación técnica de RutaViva Mobility, plataforma integral para la gestión de flota (~8,000 vehículos), ingesta de telemetría GPS en tiempo real, tarificación dinámica (surge pricing) y analítica de datos.",
+  "source": "@site/docs/index.md",
+  "sourceDirName": ".",
+  "slug": "/",
+  "permalink": "/docs/",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/docs/index.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "index",
+    "title": "RutaViva Mobility · Portal de Documentación Técnica",
+    "sidebar_label": "🚀 Inicio & Visión General",
+    "slug": "/"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Sprints & Roadmap",
+    "permalink": "/docs/guias/sprints-roadmap"
+  },
+  "next": {
+    "title": "Batch (Spark & Airflow)",
+    "permalink": "/docs/modulos/batch-spark-airflow"
+  }
+}

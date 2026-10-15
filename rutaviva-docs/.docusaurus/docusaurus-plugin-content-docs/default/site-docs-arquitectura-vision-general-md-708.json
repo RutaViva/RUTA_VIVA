@@ -1,0 +1,28 @@
+{
+  "id": "arquitectura/vision-general",
+  "title": "Arquitectura del Sistema",
+  "description": "La arquitectura de RutaViva está diseñada bajo un enfoque híbrido que combina:",
+  "source": "@site/docs/arquitectura/vision-general.md",
+  "sourceDirName": "arquitectura",
+  "slug": "/arquitectura/vision-general",
+  "permalink": "/docs/arquitectura/vision-general",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/docs/arquitectura/vision-general.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "vision-general",
+    "title": "Arquitectura del Sistema",
+    "sidebar_label": "Visión General"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Puntos Abiertos & Tensiones",
+    "permalink": "/docs/arquitectura/puntos-abiertos-tensiones"
+  },
+  "next": {
+    "title": "Correspondencia Operacional ➔ Analítico",
+    "permalink": "/docs/datos/correspondencia-modelos"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "id": "datos/estandares-glosario",
+  "title": "Estándares de Datos y Glosario de Dominio",
+  "description": "Documento de referencia para el equipo de desarrollo que asegura coherencia terminológica y homogeneidad en el pipeline de datos.",
+  "source": "@site/docs/datos/estandares-glosario.md",
+  "sourceDirName": "datos",
+  "slug": "/datos/estandares-glosario",
+  "permalink": "/docs/datos/estandares-glosario",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/docs/datos/estandares-glosario.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "estandares-glosario",
+    "title": "Estándares de Datos y Glosario de Dominio",
+    "sidebar_label": "Estándares & Glosario"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Correspondencia Operacional ➔ Analítico",
+    "permalink": "/docs/datos/correspondencia-modelos"
+  },
+  "next": {
+    "title": "Modelo Dimensional (Gold)",
+    "permalink": "/docs/datos/modelo-analitico-gold"
+  }
+}

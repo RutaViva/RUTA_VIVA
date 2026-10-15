@@ -1,12 +1,14 @@
 # vehicle.py
 import datetime
 import random
+from typing import Optional, Tuple
 from config import (
     LAT_MIN, LAT_MAX, LON_MIN, LON_MAX,
     VELOCIDAD_MIN_KMH, VELOCIDAD_MAX_KMH,
     PROBABILIDADES_TRANSICION,
 )
 from zone_locator import ZoneLocator
+
 
 class Vehiculo:
     def __init__(
@@ -16,7 +18,7 @@ class Vehiculo:
         latitude: float,
         longitude: float,
         status: str,
-        zone_locator: ZoneLocator,
+        zone_locator: Optional[ZoneLocator] = None,
     ):
         self.id = vehicle_id
         self.zone_id = zone_id
@@ -32,8 +34,9 @@ class Vehiculo:
         """Avanza el vehículo un paso de simulación."""
         # 1. Actualizar posición según velocidad y dirección
         self._mover(intervalo_segundos)
-        # 2. Mantener la zona sincronizada con las coordenadas actuales
-        self.zone_id = self.zone_locator.locate(self.lat, self.lon, self.zone_id)
+        # 2. Mantener la zona sincronizada con las coordenadas actuales si tiene zone_locator
+        if self.zone_locator is not None:
+            self.zone_id = self.zone_locator.locate(self.lat, self.lon, self.zone_id)
         # 3. Gestionar transición de estado
         self._transicionar_estado()
         # 4. Variar ligeramente la velocidad (tráfico, semáforos)
@@ -44,8 +47,6 @@ class Vehiculo:
 
     def _mover(self, intervalo_segundos: float):
         """Movimiento simple: avance lineal con ligera perturbación."""
-        # Convertir km/h a grados aproximados por segundo
-        # 1 grado de latitud ≈ 111 km; 1 grado de longitud ≈ 111 * cos(lat)
         import math
         distancia_km = (self.velocidad_kmh / 3600.0) * intervalo_segundos
         delta_lat = distancia_km / 111.0
@@ -75,13 +76,19 @@ class Vehiculo:
                 self.estado = estado_destino
                 return
 
-    def to_payload(self) -> dict:
-        """Serializa el estado actual para enviarlo por RabbitMQ."""
+    def to_payload(self, override_coords: Optional[Tuple[float, float]] = None) -> dict:
+        """
+        Serializa el estado actual para enviarlo por RabbitMQ.
+        Permite sobrescribir coordenadas en caso de inyección de defectos (fuera de ciudad).
+        """
+        lat = override_coords[0] if override_coords else self.lat
+        lon = override_coords[1] if override_coords else self.lon
+
         return {
             "vehicle_id": self.id,
-            "lat": round(self.lat, 6),
+            "lat": round(lat, 6),
             "zone_id": self.zone_id,
-            "lon": round(self.lon, 6),
+            "lon": round(lon, 6),
             "status": self.estado,
             "last_seen_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         }

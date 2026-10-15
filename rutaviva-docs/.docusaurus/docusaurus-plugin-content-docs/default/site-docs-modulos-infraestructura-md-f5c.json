@@ -1,0 +1,28 @@
+{
+  "id": "modulos/infraestructura",
+  "title": "Módulo de Infraestructura y Base de Datos",
+  "description": "Administra la persistencia relacional operacional y el versionamiento del esquema mediante Alembic.",
+  "source": "@site/docs/modulos/infraestructura.md",
+  "sourceDirName": "modulos",
+  "slug": "/modulos/infraestructura",
+  "permalink": "/docs/modulos/infraestructura",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/docs/modulos/infraestructura.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "infraestructura",
+    "title": "Módulo de Infraestructura y Base de Datos",
+    "sidebar_label": "Infraestructura (infra/)"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Batch (Spark & Airflow)",
+    "permalink": "/docs/modulos/batch-spark-airflow"
+  },
+  "next": {
+    "title": "Multiplier API (multiplier_api/)",
+    "permalink": "/docs/modulos/multiplier-api"
+  }
+}

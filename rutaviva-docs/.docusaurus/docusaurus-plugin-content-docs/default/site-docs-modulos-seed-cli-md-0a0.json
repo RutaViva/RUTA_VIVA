@@ -1,0 +1,28 @@
+{
+  "id": "modulos/seed-cli",
+  "title": "Módulo Seed CLI",
+  "description": "Herramienta de línea de comandos para el poblamiento determinista, idempotente y masivo de la base de datos operacional.",
+  "source": "@site/docs/modulos/seed-cli.md",
+  "sourceDirName": "modulos",
+  "slug": "/modulos/seed-cli",
+  "permalink": "/docs/modulos/seed-cli",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/docs/modulos/seed-cli.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "seed-cli",
+    "title": "Módulo Seed CLI",
+    "sidebar_label": "Seed CLI (seed_cli/)"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Resumen de Módulos",
+    "permalink": "/docs/modulos/resumen"
+  },
+  "next": {
+    "title": "Simulador Telemetría (telemetry_simulator/)",
+    "permalink": "/docs/modulos/telemetry-simulator"
+  }
+}

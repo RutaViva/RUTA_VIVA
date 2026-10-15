@@ -1,0 +1,28 @@
+{
+  "id": "modulos/resumen",
+  "title": "Módulos y Servicios del Sistema",
+  "description": "El repositorio de RutaViva está organizado en microservicios y módulos modulares desacoplados:",
+  "source": "@site/docs/modulos/resumen.md",
+  "sourceDirName": "modulos",
+  "slug": "/modulos/resumen",
+  "permalink": "/docs/modulos/resumen",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/docs/modulos/resumen.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "resumen",
+    "title": "Módulos y Servicios del Sistema",
+    "sidebar_label": "Resumen de Módulos"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Request Simulator (request_simulator/)",
+    "permalink": "/docs/modulos/request-simulator"
+  },
+  "next": {
+    "title": "Seed CLI (seed_cli/)",
+    "permalink": "/docs/modulos/seed-cli"
+  }
+}

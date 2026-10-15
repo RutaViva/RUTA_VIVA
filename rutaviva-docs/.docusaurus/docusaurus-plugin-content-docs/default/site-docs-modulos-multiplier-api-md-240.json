@@ -1,0 +1,28 @@
+{
+  "id": "modulos/multiplier-api",
+  "title": "API de Multiplicador y Auditoría",
+  "description": "Microservicio REST desarrollado en FastAPI encargado de entregar el multiplicador de tarifa vigente por zona, registrar solicitudes de viaje y permitir la auditoría de tarifas cobradas.",
+  "source": "@site/docs/modulos/multiplier-api.md",
+  "sourceDirName": "modulos",
+  "slug": "/modulos/multiplier-api",
+  "permalink": "/docs/modulos/multiplier-api",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/docs/modulos/multiplier-api.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "multiplier-api",
+    "title": "API de Multiplicador y Auditoría",
+    "sidebar_label": "Multiplier API (multiplier_api/)"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Infraestructura (infra/)",
+    "permalink": "/docs/modulos/infraestructura"
+  },
+  "next": {
+    "title": "Pressure Worker (pressure_worker/)",
+    "permalink": "/docs/modulos/pressure-worker"
+  }
+}

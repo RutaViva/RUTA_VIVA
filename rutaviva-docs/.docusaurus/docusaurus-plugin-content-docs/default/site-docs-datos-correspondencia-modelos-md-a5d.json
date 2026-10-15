@@ -1,0 +1,28 @@
+{
+  "id": "datos/correspondencia-modelos",
+  "title": "Correspondencia entre Modelo Operacional y Analítico",
+  "description": "Este documento detalla la trazabilidad y transformación que sufren las entidades operacionales de PostgreSQL para convertirse en las tablas analíticas del modelo dimensional en AWS S3 / Athena (Capa Gold).",
+  "source": "@site/docs/datos/correspondencia-modelos.md",
+  "sourceDirName": "datos",
+  "slug": "/datos/correspondencia-modelos",
+  "permalink": "/docs/datos/correspondencia-modelos",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/docs/datos/correspondencia-modelos.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "correspondencia-modelos",
+    "title": "Correspondencia entre Modelo Operacional y Analítico",
+    "sidebar_label": "Correspondencia Operacional ➔ Analítico"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Visión General",
+    "permalink": "/docs/arquitectura/vision-general"
+  },
+  "next": {
+    "title": "Estándares & Glosario",
+    "permalink": "/docs/datos/estandares-glosario"
+  }
+}

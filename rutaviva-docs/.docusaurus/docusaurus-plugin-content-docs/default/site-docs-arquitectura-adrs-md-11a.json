@@ -1,0 +1,24 @@
+{
+  "id": "arquitectura/adrs",
+  "title": "Registros de Decisión de Arquitectura (ADRs)",
+  "description": "Este registro documenta las decisiones técnicas fundamentales adoptadas para la plataforma RutaViva, incluyendo alternativas evaluadas y justificación técnica.",
+  "source": "@site/docs/arquitectura/adrs.md",
+  "sourceDirName": "arquitectura",
+  "slug": "/arquitectura/adrs",
+  "permalink": "/docs/arquitectura/adrs",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/docs/arquitectura/adrs.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "adrs",
+    "title": "Registros de Decisión de Arquitectura (ADRs)",
+    "sidebar_label": "Decisiones (ADRs)"
+  },
+  "sidebar": "tutorialSidebar",
+  "next": {
+    "title": "Pipeline End-to-End",
+    "permalink": "/docs/arquitectura/pipeline-end-to-end"
+  }
+}

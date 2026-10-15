@@ -1,0 +1,28 @@
+{
+  "id": "reglas-negocio/auditoria-trazabilidad",
+  "title": "Auditoría y Trazabilidad Inmutable",
+  "description": "Uno de los principales objetivos de negocio de RutaViva es garantizar que cualquier tarifa cobrada pueda ser reconstruida con precisión matemática meses o años después de realizado el viaje.",
+  "source": "@site/docs/reglas-negocio/auditoria-trazabilidad.md",
+  "sourceDirName": "reglas-negocio",
+  "slug": "/reglas-negocio/auditoria-trazabilidad",
+  "permalink": "/docs/reglas-negocio/auditoria-trazabilidad",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/docs/reglas-negocio/auditoria-trazabilidad.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "auditoria-trazabilidad",
+    "title": "Auditoría y Trazabilidad Inmutable",
+    "sidebar_label": "Auditoría y Trazabilidad"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Simulador Telemetría (telemetry_simulator/)",
+    "permalink": "/docs/modulos/telemetry-simulator"
+  },
+  "next": {
+    "title": "Reglas de Tarifa Dinámica",
+    "permalink": "/docs/reglas-negocio/reglas-tarifarias"
+  }
+}

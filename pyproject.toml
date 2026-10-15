@@ -25,3 +25,11 @@ rutaviva = "rutaviva:main"
 [build-system]
 requires = ["uv_build>=0.12.21,<0.13.0"]
 build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+pythonpath = [
+    ".",
+    "services/telemetry_simulator/app",
+    "services/multiplier_api/app",
+]
+

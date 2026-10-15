@@ -1,0 +1,28 @@
+{
+  "id": "arquitectura/puntos-abiertos-tensiones",
+  "title": "Puntos Abiertos, Supuestos y Tensiones de Arquitectura",
+  "description": "Este documento consolida los análisis críticos, supuestos de diseño y tensiones técnicas identificadas en las notas de arquitectura de Obsidian para RutaViva.",
+  "source": "@site/docs/arquitectura/puntos-abiertos-tensiones.md",
+  "sourceDirName": "arquitectura",
+  "slug": "/arquitectura/puntos-abiertos-tensiones",
+  "permalink": "/docs/arquitectura/puntos-abiertos-tensiones",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/docs/arquitectura/puntos-abiertos-tensiones.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "puntos-abiertos-tensiones",
+    "title": "Puntos Abiertos, Supuestos y Tensiones de Arquitectura",
+    "sidebar_label": "Puntos Abiertos & Tensiones"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Pipeline End-to-End",
+    "permalink": "/docs/arquitectura/pipeline-end-to-end"
+  },
+  "next": {
+    "title": "Visión General",
+    "permalink": "/docs/arquitectura/vision-general"
+  }
+}
