@@ -8,6 +8,7 @@ from config import (
     SILENT_VEHICLES_PCT,
     OUT_OF_CITY_PCT,
     DEFECT_DELAY_SECONDS,
+    TIEMPO_LIMITE_SIN_TELEMETRIA,
 )
 from vehicle import Vehiculo
 from rabbit_publisher import RabbitPublisher
@@ -77,7 +78,18 @@ async def bucle_simulacion():
 
             # 4. Convertir a payloads aplicando defectos si están activos
             payloads = []
+            vehiculos_reportados = []
             for v in vehiculos:
+                if v.marcar_offline_si_sin_telemetria(TIEMPO_LIMITE_SIN_TELEMETRIA):
+                    logger.warning(
+                        "Vehículo %s marcado offline tras %ds sin telemetría.",
+                        v.id,
+                        TIEMPO_LIMITE_SIN_TELEMETRIA,
+                    )
+
+                if not v.puede_reportar_telemetria:
+                    continue
+
                 # Defecto 1: Vehículos silenciosos (dejan de reportar)
                 if defects_active and v.id in defect_plan.silent_ids:
                     continue
@@ -88,6 +100,7 @@ async def bucle_simulacion():
                     payloads.append(v.to_payload(override_coords=out_coords))
                 else:
                     payloads.append(v.to_payload())
+                vehiculos_reportados.append(v)
 
             # 5. Dividir en lotes y publicar en paralelo
             lotes = [
@@ -103,6 +116,8 @@ async def bucle_simulacion():
 
             tareas = [publisher.publish_batch(lote) for lote in lotes]
             await asyncio.gather(*tareas)
+            for v in vehiculos_reportados:
+                v.registrar_reporte_telemetria()
 
             logger.info("Ciclo %d completado. Esperando %ds...", ciclo, INTERVALO_TELEMETRIA)
             # 6. Esperar hasta el próximo ciclo

@@ -286,7 +286,6 @@ def generate_driver_vehicle_states(driver_vehicle_pairs, zones_gdf):
         lat, lon, zone_id, _ = generate_coordinates_and_random_zone(zones_gdf)
         
         vehicle_states.append({
-            "driver_id": driver_id,
             "vehicle_id": active_vehicle_id,
             "zone_id": zone_id,
             "latitude": lat,
@@ -301,7 +300,6 @@ def generate_driver_vehicle_states(driver_vehicle_pairs, zones_gdf):
             inact_lat, inact_lon, inact_zone_id, _ = generate_coordinates_and_random_zone(zones_gdf)
             
             vehicle_states.append({
-                "driver_id": driver_id,
                 "vehicle_id": inactive_vehicle_id,
                 "zone_id": inact_zone_id,
                 "latitude": inact_lat,
@@ -354,6 +352,7 @@ def validate_consistency(
             )
 
     #Validar existencia de relaciones y validez de estados de vehículos
+    active_vehicles_by_driver: Dict[Any, int] = {}
     for vehicle in vehicles:
         vehicle_id = vehicle["vehicle_id"]
         driver_id = vehicle["driver_id"]
@@ -370,6 +369,14 @@ def validate_consistency(
         if vehicle_status not in VEHICLE_STATUSES:
             raise AssertionError(
                 f"Vehículo {vehicle_id}: el status {vehicle_status!r} no es un estado válido.")
+        if vehicle_status in {"available", "busy"}:
+            active_vehicles_by_driver[driver_id] = (
+                active_vehicles_by_driver.get(driver_id, 0) + 1
+            )
+            if active_vehicles_by_driver[driver_id] > 1:
+                raise AssertionError(
+                    f"Conductor {driver_id}: tiene más de un vehículo operativo."
+                )
 
 
 if __name__ == "__main__":

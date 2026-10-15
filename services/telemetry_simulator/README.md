@@ -20,6 +20,8 @@ Simulador asíncrono de telemetría GPS para la flota de vehículos (~8,000 móv
 
 El simulador cumple con el requerimiento **F4** del proyecto RutaViva y la historia de usuario **HU-02**:
 * Emite mensajes JSON con el contrato oficial (`vehicle_id`, `zone_id`, `lat`, `lon`, `status`, `last_seen_at`) cada 15 segundos por vehículo.
+* Publica como máximo un vehículo operativo (`available` o `busy`) por conductor; vehículos `offline` o `maintenance` no emiten telemetría.
+* Marca como `offline` en el simulador a los vehículos que superan 120 segundos sin un reporte publicado correctamente.
 * Mantiene a los vehículos en movimiento dentro de polígonos de zonas válidas de la ciudad mediante indexación espacial en memoria (**R-Tree / GeoPandas**).
 * Inyecta **defectos de calidad controlados**:
   1. Un porcentaje configurable de vehículos que deja de reportar (*vehículos silenciosos*).
@@ -96,7 +98,7 @@ A continuación se detalla cada archivo tocado o creado y el motivo del cambio:
 | [`app/config.py`](app/config.py) | **Modificado** | - **Antes**: Solo leía `database_url` y tenía fijados `RABBITMQ_URL` con localhost sin soporte para `.env` local.<br>- **Ahora**: Incorpora lectura unificada de `.env` (local y de raíz del proyecto), agrega `SILENT_VEHICLES_PCT` (5.0%), `OUT_OF_CITY_PCT` (3.0%), `DEFECT_DELAY_SECONDS` (60s) y las coordenadas límite de anomalías fuera de la ciudad (`OUTSIDE_MIN_LAT`, `OUTSIDE_MAX_LAT`, `OUTSIDE_MIN_LON`, `OUTSIDE_MAX_LON`). |
 | [`app/defects.py`](app/defects.py) | **Creado** | - **Nuevo módulo**: Implementa el modelo inmutable `DefectPlan` (con `silent_ids` y `out_of_city_ids` como `frozenset`).<br>- Provee la función pura `plan_defects()` que garantiza que los dos grupos de vehículos defectuosos sean estrictamente **disjuntos** y reproducibles.<br>- Provee `out_of_city_position()` para generar coordenadas geográficas verosímiles pero fuera del cuadrante urbano. |
 | [`app/vehicle.py`](app/vehicle.py) | **Modificado** | - **Antes**: `zone_locator` era obligatorio y no se podían sobreescribir coordenadas al generar el payload JSON.<br>- **Ahora**: `zone_locator` es opcional (permite instanciar vehículos livianos en tests unitarios sin cargar shapefiles) y el método `to_payload()` acepta el parámetro `override_coords: Optional[Tuple[float, float]]` para permitir la inyección de anomalías sin descalibrar el estado físico interno del vehículo. |
-| [`app/telemetry_generator.py`](app/telemetry_generator.py) | **Modificado** | - **Antes**: Enviaba todos los vehículos cargados sin distinción en cada ciclo.<br>- **Ahora**: Planifica los defectos al inicio con `plan_defects()`. En cada ciclo evalúa si se cumplió el tiempo de gracia (`DEFECT_DELAY_SECONDS`). Si está activo, omite los vehículos silenciosos (`silent_ids`) y envía coordenadas fuera de la ciudad para los marcados en `out_of_city_ids`. |
+| [`app/telemetry_generator.py`](app/telemetry_generator.py) | **Modificado** | - Limita el envío a vehículos operativos, omite los silenciosos y marca `offline` los que llevan más de 120 segundos sin un reporte publicado correctamente. Mantiene la inyección de coordenadas fuera de la ciudad para los vehículos seleccionados. |
 | [`tests/test_simulator.py`](tests/test_simulator.py) | **Creado** | - **Nueva suite de pruebas unitarias**: Valida el contrato del mensaje JSON, la restricción urbana de la cinemática vehicular, la disyunción matemática de los conjuntos de defectos y la verificación de que las coordenadas de defecto caen estrictamente fuera de la ciudad. |
 | [`../../pyproject.toml`](../../pyproject.toml) | **Modificado** | - Agrega la sección `[tool.pytest.ini_options]` con `pythonpath` configurado para ejecutar pruebas limpiamente desde cualquier nivel sin errores de importación. |
 
@@ -120,7 +122,7 @@ A continuación se detalla cada archivo tocado o creado y el motivo del cambio:
    Durante los primeros segundos (por defecto 60 segundos), todos los vehículos reportan normalmente. Esto permite que los consumidores (como el worker de presión) reciban la flota completa y establezcan su línea base.
 3. **Disparo de Anomalías**:
    Una vez transcurrido el retardo, el generador activa los defectos:
-   * **Silenciosos**: Si `v.id in defect_plan.silent_ids`, se omite en el payload. Al no reportar, el futuro worker detectará que `last_seen_at > 2 min` y lo marcará fuera de servicio (RN-10).
+   * **Silenciosos**: Si `v.id in defect_plan.silent_ids`, se omite en el payload. Pasados 120 segundos sin un reporte publicado correctamente, el simulador cambia su estado local a `offline` y deja de procesarlo como operativo. RN-10 requiere además que el consumidor de telemetría persista/compruebe `last_seen_at`; el `pressure_worker` todavía está pendiente de implementación.
    * **Fuera de la ciudad**: Si `v.id in defect_plan.out_of_city_ids`, `v.to_payload(override_coords=out_coords)` envía coordenadas en el rango `[39.00, 39.50]` lat / `[-73.00, -72.00]` lon. El consumidor deberá descartar estos registros por estar fuera de zona válida.
 
 ---

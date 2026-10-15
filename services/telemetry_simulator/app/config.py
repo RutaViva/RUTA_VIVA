@@ -45,6 +45,8 @@ OUTSIDE_MIN_LON, OUTSIDE_MAX_LON = -73.0000, -72.0000
 
 # --- Estados del vehículo ---
 ESTADOS = ["available", "busy", "offline", "maintenance"]
+ESTADOS_OPERATIVOS = {"available", "busy"}
+TIEMPO_LIMITE_SIN_TELEMETRIA = 120
 
 # Probabilidad de cambiar a cada estado en un tick (15 segundos).
 PROBABILIDADES_TRANSICION = {

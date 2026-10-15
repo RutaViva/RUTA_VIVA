@@ -21,8 +21,9 @@ from .seeder import (
     generate_licenses,
     generate_sanctions,
     generate_vehicles,
-    generate_vehicle_states,
+    generate_driver_vehicle_states,
     generate_zones,
+    zones_gdf,
 )
 from .models import (
     Driver,
@@ -84,8 +85,16 @@ def run_seeder(drivers_count: int, clean_first: bool):
             min_vehicles_per_driver=1,
             max_vehicles_per_driver=2,
         )
-        vehicle_ids = [vehicle["vehicle_id"] for vehicle in vehicles_data]
-        vehicle_states_data = generate_vehicle_states(vehicle_ids)
+        vehicle_states_data = generate_driver_vehicle_states(
+            [
+                {
+                    "driver_id": vehicle["driver_id"],
+                    "vehicle_id": vehicle["vehicle_id"],
+                }
+                for vehicle in vehicles_data
+            ],
+            zones_gdf,
+        )
 
         bulk_insert_in_chunks(session, Zone, zones_data)
         bulk_insert_in_chunks(session, Driver, drivers_data)

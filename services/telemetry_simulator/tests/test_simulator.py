@@ -35,6 +35,35 @@ def test_mensaje_tiene_los_campos_del_contrato():
     assert payload["status"] == "available"
 
 
+def test_vehiculo_sin_reporte_durante_dos_minutos_pasa_a_offline(monkeypatch):
+    monkeypatch.setattr("vehicle.time.monotonic", lambda: 100.0)
+    vehiculo = Vehiculo(
+        vehicle_id="v-silent",
+        zone_id=1,
+        latitude=40.7500,
+        longitude=-73.9800,
+        status="available",
+    )
+
+    assert not vehiculo.marcar_offline_si_sin_telemetria(120, ahora=219.9)
+    assert vehiculo.marcar_offline_si_sin_telemetria(120, ahora=220.0)
+    assert vehiculo.estado == "offline"
+    assert not vehiculo.puede_reportar_telemetria
+    assert not vehiculo.marcar_offline_si_sin_telemetria(120, ahora=250.0)
+
+
+def test_vehiculos_offline_y_en_mantenimiento_no_pueden_reportar():
+    for status in ("offline", "maintenance"):
+        vehiculo = Vehiculo(
+            vehicle_id=f"v-{status}",
+            zone_id=1,
+            latitude=40.7500,
+            longitude=-73.9800,
+            status=status,
+        )
+        assert not vehiculo.puede_reportar_telemetria
+
+
 def test_los_vehiculos_siempre_se_mueven_dentro_de_la_ciudad():
     """La cinemática normal de los vehículos los mantiene dentro del cuadrante urbano."""
     vehiculo = Vehiculo(
