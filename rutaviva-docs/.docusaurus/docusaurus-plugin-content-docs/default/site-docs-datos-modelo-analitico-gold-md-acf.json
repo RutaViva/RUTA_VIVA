@@ -1,0 +1,28 @@
+{
+  "id": "datos/modelo-analitico-gold",
+  "title": "Modelo Analítico Dimensional (Gold)",
+  "description": "El modelo dimensional implementa un esquema en constelación de hechos optimizado para responder a las preguntas estratégicas de negocio en Power BI a través de Amazon Athena.",
+  "source": "@site/docs/datos/modelo-analitico-gold.md",
+  "sourceDirName": "datos",
+  "slug": "/datos/modelo-analitico-gold",
+  "permalink": "/docs/datos/modelo-analitico-gold",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/docs/datos/modelo-analitico-gold.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "modelo-analitico-gold",
+    "title": "Modelo Analítico Dimensional (Gold)",
+    "sidebar_label": "Modelo Dimensional (Gold)"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Estándares & Glosario",
+    "permalink": "/docs/datos/estandares-glosario"
+  },
+  "next": {
+    "title": "MER Operacional (13 Tablas)",
+    "permalink": "/docs/datos/modelo-operacional-mer"
+  }
+}

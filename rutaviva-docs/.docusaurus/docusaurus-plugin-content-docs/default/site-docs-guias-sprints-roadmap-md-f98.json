@@ -1,0 +1,28 @@
+{
+  "id": "guias/sprints-roadmap",
+  "title": "Hoja de Ruta de Sprints (Scrum)",
+  "description": "Evolución del proyecto a lo largo del programa de 6 semanas:",
+  "source": "@site/docs/guias/sprints-roadmap.md",
+  "sourceDirName": "guias",
+  "slug": "/guias/sprints-roadmap",
+  "permalink": "/docs/guias/sprints-roadmap",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/docs/guias/sprints-roadmap.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "sprints-roadmap",
+    "title": "Hoja de Ruta de Sprints (Scrum)",
+    "sidebar_label": "Sprints & Roadmap"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Puesta en Marcha",
+    "permalink": "/docs/guias/puesta-en-marcha"
+  },
+  "next": {
+    "title": "🚀 Inicio & Visión General",
+    "permalink": "/docs/"
+  }
+}

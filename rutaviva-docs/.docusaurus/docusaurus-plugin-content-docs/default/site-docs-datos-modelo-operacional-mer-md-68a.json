@@ -1,0 +1,28 @@
+{
+  "id": "datos/modelo-operacional-mer",
+  "title": "Modelo Operacional (PostgreSQL)",
+  "description": "El esquema operacional contiene 13 entidades relacionales gestionadas mediante migraciones con Alembic.",
+  "source": "@site/docs/datos/modelo-operacional-mer.md",
+  "sourceDirName": "datos",
+  "slug": "/datos/modelo-operacional-mer",
+  "permalink": "/docs/datos/modelo-operacional-mer",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/docs/datos/modelo-operacional-mer.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "modelo-operacional-mer",
+    "title": "Modelo Operacional (PostgreSQL)",
+    "sidebar_label": "MER Operacional (13 Tablas)"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Modelo Dimensional (Gold)",
+    "permalink": "/docs/datos/modelo-analitico-gold"
+  },
+  "next": {
+    "title": "Puesta en Marcha",
+    "permalink": "/docs/guias/puesta-en-marcha"
+  }
+}

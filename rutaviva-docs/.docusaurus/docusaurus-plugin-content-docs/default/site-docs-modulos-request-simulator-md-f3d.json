@@ -1,0 +1,28 @@
+{
+  "id": "modulos/request-simulator",
+  "title": "Simulador de Solicitudes de Pasajeros",
+  "description": "Generador de carga sintética que emula el comportamiento de los pasajeros solicitando viajes en distintas zonas de la ciudad (Requerimiento F5 / Historia HU-01).",
+  "source": "@site/docs/modulos/request-simulator.md",
+  "sourceDirName": "modulos",
+  "slug": "/modulos/request-simulator",
+  "permalink": "/docs/modulos/request-simulator",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/docs/modulos/request-simulator.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "request-simulator",
+    "title": "Simulador de Solicitudes de Pasajeros",
+    "sidebar_label": "Request Simulator (request_simulator/)"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Pressure Worker (pressure_worker/)",
+    "permalink": "/docs/modulos/pressure-worker"
+  },
+  "next": {
+    "title": "Resumen de Módulos",
+    "permalink": "/docs/modulos/resumen"
+  }
+}

@@ -1,0 +1,139 @@
+{
+  "docusaurus-plugin-content-docs": {
+    "default": {
+      "path": "/docs",
+      "versions": [
+        {
+          "name": "current",
+          "label": "Next",
+          "isLast": true,
+          "path": "/docs",
+          "mainDocId": "index",
+          "docs": [
+            {
+              "id": "arquitectura/adrs",
+              "path": "/docs/arquitectura/adrs",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "arquitectura/pipeline-end-to-end",
+              "path": "/docs/arquitectura/pipeline-end-to-end",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "arquitectura/puntos-abiertos-tensiones",
+              "path": "/docs/arquitectura/puntos-abiertos-tensiones",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "arquitectura/vision-general",
+              "path": "/docs/arquitectura/vision-general",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "datos/correspondencia-modelos",
+              "path": "/docs/datos/correspondencia-modelos",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "datos/estandares-glosario",
+              "path": "/docs/datos/estandares-glosario",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "datos/modelo-analitico-gold",
+              "path": "/docs/datos/modelo-analitico-gold",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "datos/modelo-operacional-mer",
+              "path": "/docs/datos/modelo-operacional-mer",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "guias/puesta-en-marcha",
+              "path": "/docs/guias/puesta-en-marcha",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "guias/sprints-roadmap",
+              "path": "/docs/guias/sprints-roadmap",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "index",
+              "path": "/docs/",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "modulos/batch-spark-airflow",
+              "path": "/docs/modulos/batch-spark-airflow",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "modulos/infraestructura",
+              "path": "/docs/modulos/infraestructura",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "modulos/multiplier-api",
+              "path": "/docs/modulos/multiplier-api",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "modulos/pressure-worker",
+              "path": "/docs/modulos/pressure-worker",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "modulos/request-simulator",
+              "path": "/docs/modulos/request-simulator",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "modulos/resumen",
+              "path": "/docs/modulos/resumen",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "modulos/seed-cli",
+              "path": "/docs/modulos/seed-cli",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "modulos/telemetry-simulator",
+              "path": "/docs/modulos/telemetry-simulator",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "reglas-negocio/auditoria-trazabilidad",
+              "path": "/docs/reglas-negocio/auditoria-trazabilidad",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "reglas-negocio/reglas-tarifarias",
+              "path": "/docs/reglas-negocio/reglas-tarifarias",
+              "sidebar": "tutorialSidebar"
+            }
+          ],
+          "draftIds": [],
+          "sidebars": {
+            "tutorialSidebar": {
+              "link": {
+                "path": "/docs/arquitectura/adrs",
+                "label": "Decisiones (ADRs)"
+              }
+            }
+          }
+        }
+      ],
+      "breadcrumbs": true
+    }
+  },
+  "docusaurus-plugin-mcp-server": {
+    "default": {
+      "serverUrl": "https://your-docusaurus-site.example.com/mcp",
+      "serverName": "rutaviva-docs-mcp"
+    }
+  }
+}

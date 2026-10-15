@@ -1,0 +1,35 @@
+[project]
+name = "rutaviva"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "barrera-daniel-jpg", email = "barreradb77@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "aio-pika>=10.1.1",
+    "alembic>=1.20.0",
+    "faker>=40.41.0",
+    "fastapi>=0.143.0",
+    "geopandas>=1.2.0",
+    "pandas>=3.0.6",
+    "psycopg[binary]>=3.3.6",
+    "pydantic-settings>=2.0",
+    "sqlalchemy>=2.0",
+]
+
+[project.scripts]
+rutaviva = "rutaviva:main"
+
+[build-system]
+requires = ["uv_build>=0.12.21,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+pythonpath = [
+    ".",
+    "services/telemetry_simulator/app",
+    "services/multiplier_api/app",
+]
+

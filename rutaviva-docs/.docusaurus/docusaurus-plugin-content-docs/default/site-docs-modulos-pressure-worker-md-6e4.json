@@ -1,0 +1,28 @@
+{
+  "id": "modulos/pressure-worker",
+  "title": "Worker de Presión y Tarificación Dinámica",
+  "description": "Componente de procesamiento en segundo plano (consumidor de RabbitMQ) encargado de calcular la presión de demanda y el multiplicador de tarifa por zona de forma reactiva y continua.",
+  "source": "@site/docs/modulos/pressure-worker.md",
+  "sourceDirName": "modulos",
+  "slug": "/modulos/pressure-worker",
+  "permalink": "/docs/modulos/pressure-worker",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/docs/modulos/pressure-worker.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "pressure-worker",
+    "title": "Worker de Presión y Tarificación Dinámica",
+    "sidebar_label": "Pressure Worker (pressure_worker/)"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Multiplier API (multiplier_api/)",
+    "permalink": "/docs/modulos/multiplier-api"
+  },
+  "next": {
+    "title": "Request Simulator (request_simulator/)",
+    "permalink": "/docs/modulos/request-simulator"
+  }
+}

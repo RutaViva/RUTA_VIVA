@@ -1,0 +1,28 @@
+{
+  "id": "guias/puesta-en-marcha",
+  "title": "Guía de Puesta en Marcha Rápida",
+  "description": "Instrucciones para levantar el entorno de desarrollo local de RutaViva.",
+  "source": "@site/docs/guias/puesta-en-marcha.md",
+  "sourceDirName": "guias",
+  "slug": "/guias/puesta-en-marcha",
+  "permalink": "/docs/guias/puesta-en-marcha",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/docs/guias/puesta-en-marcha.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "puesta-en-marcha",
+    "title": "Guía de Puesta en Marcha Rápida",
+    "sidebar_label": "Puesta en Marcha"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "MER Operacional (13 Tablas)",
+    "permalink": "/docs/datos/modelo-operacional-mer"
+  },
+  "next": {
+    "title": "Sprints & Roadmap",
+    "permalink": "/docs/guias/sprints-roadmap"
+  }
+}

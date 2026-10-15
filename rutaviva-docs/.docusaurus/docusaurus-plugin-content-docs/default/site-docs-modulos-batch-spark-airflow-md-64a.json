@@ -1,0 +1,28 @@
+{
+  "id": "modulos/batch-spark-airflow",
+  "title": "Procesamiento Batch (Spark & Airflow)",
+  "description": "El módulo batch contiene los trabajos analíticos distribuidos (PySpark) y los grafos de orquestación (Apache Airflow).",
+  "source": "@site/docs/modulos/batch-spark-airflow.md",
+  "sourceDirName": "modulos",
+  "slug": "/modulos/batch-spark-airflow",
+  "permalink": "/docs/modulos/batch-spark-airflow",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/docs/modulos/batch-spark-airflow.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "batch-spark-airflow",
+    "title": "Procesamiento Batch (Spark & Airflow)",
+    "sidebar_label": "Batch (Spark & Airflow)"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "🚀 Inicio & Visión General",
+    "permalink": "/docs/"
+  },
+  "next": {
+    "title": "Infraestructura (infra/)",
+    "permalink": "/docs/modulos/infraestructura"
+  }
+}

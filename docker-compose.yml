@@ -1,0 +1,45 @@
+services:
+  db:
+    image: postgres:16
+    container_name: rutaviva_postgres
+    restart: always
+    # El archivo .env está en la raíz del proyecto actual.
+    env_file:
+      - ./.env
+    # Puerto fijo: tu máquina escucha en 5438 y Docker lo manda al 5432 interno.
+    ports:
+      - "5438:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: rabbitmq-telemetria
+    hostname: rabbitmq-telemetria
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    env_file:
+      - .env
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=admin1234
+      - RABBITMQ_DEFAULT_VHOST=/
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+volumes:
+  pg_data:
+  rabbitmq_data:

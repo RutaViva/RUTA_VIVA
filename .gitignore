@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+# Secretos: nunca se suben
+.env
+*.pem
+# IDE / SO
+.vscode/
+.idea/
+.DS_Store
+# Logs
+.log
+# Node.js
+node_modules/
