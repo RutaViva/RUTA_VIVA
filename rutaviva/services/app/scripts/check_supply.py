@@ -1,8 +1,8 @@
 from datetime import date
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
-from services.app.models.fleet import Driver, License, Sanction
-from services.app.crud.fleet import get_available_supply
+from services.app.models.fleet import Driver, License, Sanction, Vehicle, VehicleState
+from services.app.crud.fleet import get_available_supply, get_available_vehicles
 
 POSTGRES_URL = "postgresql+psycopg://admin:admin1234@localhost:5438/rutaviva_db"
 
@@ -12,24 +12,30 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 def audit_real_postgres_supply():
     db = SessionLocal()
     try:
-        # Toma automáticamente la fecha actual del sistema
         eval_date = date.today()
         
-        print("\n" + "="*95)
-        print(f"🔍 AUDITORÍA DE OFERTA REAL EN POSTGRESQL (Fecha de evaluación: {eval_date})")
-        print("="*95)
+        print("\n" + "="*115)
+        print(f"🔍 AUDITORÍA DE OFERTA REAL (CONDUCTORES + VEHÍCULOS) EN POSTGRESQL (Fecha: {eval_date})")
+        print("="*115)
 
-        result = db.execute(text("SELECT driver_id, full_name, status FROM driver")).fetchall()
-        available_supply = get_available_supply(db, query_date=eval_date)
+        query = text("""
+            SELECT d.driver_id, d.full_name, d.status AS driver_status,
+                   v.plate, vs.status AS vehicle_status
+            FROM driver d
+            LEFT JOIN vehicle v ON d.driver_id = v.driver_id
+            LEFT JOIN vehicle_state vs ON v.vehicle_id = vs.vehicle_id
+        """)
+        result = db.execute(query).fetchall()
         
+        available_supply = get_available_supply(db, query_date=eval_date)
+        available_vehicles = get_available_vehicles(db, query_date=eval_date)
         available_ids = {str(d.driver_id) for d in available_supply}
 
-        total_drivers = len(result)
         for row in result:
-            d_id, full_name, db_status = row[0], row[1], row[2]
+            d_id, full_name, db_status, plate, v_status = row[0], row[1], row[2], row[3] or "SIN AUTO", row[4] or "N/A"
             d_id_str = str(d_id)
             is_available = d_id_str in available_ids
-            status_str = "✅ DISPONIBLE (En la oferta)" if is_available else "❌ EXCLUIDO (Fuera de la oferta)"
+            status_str = "✅ EN OFERTA" if is_available else "❌ EXCLUIDO"
             
             reason = ""
             if not is_available:
@@ -42,18 +48,22 @@ def audit_real_postgres_supply():
                 
                 reasons = []
                 if license_obj and license_obj.expires_on < eval_date:
-                    reasons.append(f"Licencia expirada el {license_obj.expires_on}")
+                    reasons.append(f"Licencia vencida ({license_obj.expires_on})")
                 if sanction_obj:
-                    reasons.append(f"Sanción vigente ({sanction_obj.starts_on} a {sanction_obj.ends_on})")
+                    reasons.append(f"Sanción ({sanction_obj.starts_on} a {sanction_obj.ends_on})")
                 if db_status != 'active':
-                    reasons.append(f"Estado en tabla: {db_status}")
+                    reasons.append(f"Driver: {db_status}")
                 
-                reason = f" -> Motivo: {', '.join(reasons) if reasons else 'Sin licencia registrada / Excluido por RN-09'}"
+                reason = f" -> {', '.join(reasons)}"
 
-            print(f"ID: {d_id_str[:8]}... | Nombre: {full_name:<20} | Estado DB: {db_status:<9} | RN-09: {status_str}{reason}")
+            print(
+                f"Placa: {plate:<10} (Auto: {v_status:<9}) | "
+                f"Conductor: {full_name:<20} (Driver: {db_status:<9}) | "
+                f"RN-09: {status_str}{reason}"
+            )
 
-        print("="*95)
-        print(f"📊 Resumen: {len(available_supply)} conductores disponibles de un total de {total_drivers} en la base de datos.\n")
+        print("="*115)
+        print(f"📊 Conductores disponibles: {len(available_supply)}/{len(result)} | Vehículos habilitados por RN-09: {len(available_vehicles)}\n")
 
     except Exception as e:
         print(f"❌ Error al consultar la base de datos real: {e}")

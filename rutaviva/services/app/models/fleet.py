@@ -1,6 +1,6 @@
 import enum
 import uuid
-from sqlalchemy import Column, Integer, String, Date, ForeignKey
+from sqlalchemy import Column, Integer, String, Date, DateTime, Float, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from services.app.database import Base
@@ -31,11 +31,22 @@ class Vehicle(Base):
 
     vehicle_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     driver_id = Column(UUID(as_uuid=True), ForeignKey("driver.driver_id"), unique=True, nullable=True)
-    plate = Column(String(20), unique=True, nullable=True, index=True)
-    model = Column(String(50), nullable=True)
-    year = Column(Integer, nullable=True)
+    plate = Column(String(20), unique=True, nullable=False, index=True)
 
     driver = relationship("Driver", back_populates="vehicle")
+    state = relationship("VehicleState", back_populates="vehicle", uselist=False)
+
+class VehicleState(Base):
+    __tablename__ = "vehicle_state"
+
+    vehicle_id = Column(UUID(as_uuid=True), ForeignKey("vehicle.vehicle_id"), primary_key=True, index=True)
+    zone_id = Column(Integer, nullable=True)
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
+    status = Column(String(50), nullable=False)
+    last_seen_at = Column(DateTime, nullable=True)
+
+    vehicle = relationship("Vehicle", back_populates="state")
 
 class License(Base):
     __tablename__ = "license"

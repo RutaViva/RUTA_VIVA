@@ -1,14 +1,10 @@
 from datetime import date
 from sqlalchemy import select, not_, or_, and_
-from sqlalchemy.orm import Session
-from services.app.models.fleet import Driver, License, Sanction
+from sqlalchemy.orm import Session, joinedload
+from services.app.models.fleet import Driver, License, Sanction, Vehicle, VehicleState
 
-def get_available_supply(db: Session, query_date: date = None):
-    if query_date is None:
-        query_date = date.today()
-
-    # Subconsulta de conductores con sanciones vigentes en la fecha consultada
-    active_suspension_subquery = (
+def _active_suspension_subquery(query_date: date):
+    return (
         select(Sanction.driver_id)
         .where(
             and_(
@@ -18,16 +14,54 @@ def get_available_supply(db: Session, query_date: date = None):
         )
     )
 
-    # Consulta principal: conductores activos, con licencia no vencida y sin sanción activa
-    available_drivers = (
+def get_available_supply(db: Session, query_date: date = None):
+    """
+    Retorna los conductores aptos en la oferta según RN-09
+    (activos, con licencia vigente y sin sanciones activas), cargando su vehículo.
+    """
+    if query_date is None:
+        query_date = date.today()
+
+    subquery = _active_suspension_subquery(query_date)
+
+    return (
         db.query(Driver)
+        .options(joinedload(Driver.vehicle).joinedload(Vehicle.state))
         .join(License, Driver.driver_id == License.driver_id)
         .filter(
             Driver.status == "active",
             License.expires_on >= query_date,
-            not_(Driver.driver_id.in_(active_suspension_subquery))
+            not_(Driver.driver_id.in_(subquery))
         )
         .all()
     )
 
-    return available_drivers
+def get_available_vehicles(db: Session, query_date: date = None, zone_id: int = None):
+    """
+    Retorna únicamente los vehículos cuyos conductores cumplen RN-09.
+    Aunque el vehículo tenga estado activo en vehicle_state, si su conductor está
+    inactivo, suspendido o con licencia vencida, queda excluido de la oferta.
+    """
+    if query_date is None:
+        query_date = date.today()
+
+    subquery = _active_suspension_subquery(query_date)
+
+    query = (
+        db.query(Vehicle)
+        .options(joinedload(Vehicle.driver), joinedload(Vehicle.state))
+        .join(Driver, Vehicle.driver_id == Driver.driver_id)
+        .join(License, Driver.driver_id == License.driver_id)
+        .filter(
+            Driver.status == "active",
+            License.expires_on >= query_date,
+            not_(Driver.driver_id.in_(subquery))
+        )
+    )
+
+    if zone_id is not None:
+        query = query.join(VehicleState, Vehicle.vehicle_id == VehicleState.vehicle_id).filter(
+            VehicleState.zone_id == zone_id
+        )
+
+    return query.all()
