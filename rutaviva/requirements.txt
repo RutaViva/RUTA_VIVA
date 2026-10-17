@@ -1,0 +1,12 @@
+alembic
+SQLAlchemy
+psycopg[binary]
+pydantic
+pydantic-settings
+python-dotenv
+pandas
+numpy
+geopandas
+shapely
+Faker
+pytest

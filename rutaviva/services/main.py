@@ -8,7 +8,7 @@ import logging
 import time
 from typing import Any, Dict, List, Type
 
-from sqlalchemy import insert
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 from .models import Driver, Vehicle, Zone
@@ -41,19 +41,29 @@ logger = logging.getLogger("DataSeeder")
 logger.info(f"engine.url: {engine.url}")
 
 
-def bulk_insert_in_chunks(session: Session, model_cls: Type, data: List[Dict[str, Any]], chunk_size: int = 5000):
+def bulk_insert_in_chunks(session, model_cls, data: list, chunk_size: int = 5000):
     """
-    Realiza inserciones masivas en lotes (chunks) optimizadas para SQLAlchemy Core.
+    Inserta datos en lotes utilizando ON CONFLICT DO NOTHING para garantizar 
+    idempotencia sin necesidad de limpiar la tabla previamente.
     """
-    total = len(data)
-    if total == 0:
+    if not data:
         return
-
-    logger.info(f"Insertando {total} registros en '{model_cls.__tablename__}' (Lotes de {chunk_size})...")
-    for i in range(0, total, chunk_size):
+        
+    for i in range(0, len(data), chunk_size):
         chunk = data[i : i + chunk_size]
-        session.execute(insert(model_cls), chunk)
-    session.flush()
+        
+        # 1. Crear la sentencia de inserción específica de PostgreSQL
+        stmt = pg_insert(model_cls).values(chunk)
+        
+        # 2. Agregar la regla de Upsert (Ignorar si ya existe la clave primaria)
+        # Si prefieres que actualice los datos, se usaría .on_conflict_do_update()
+        stmt = stmt.on_conflict_do_nothing()
+        
+        # 3. Ejecutar el lote
+        session.execute(stmt)
+        
+    session.commit()
+
 
 
 def run_seeder(drivers_count: int, clean_first: bool):
