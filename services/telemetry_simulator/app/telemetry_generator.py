@@ -1,4 +1,12 @@
 # telemetry_generator.py
+import sys
+from pathlib import Path
+
+# Permitir ejecución tanto como script directo, módulo desde la raíz o dentro de Docker
+_app_dir = Path(__file__).resolve().parent
+if str(_app_dir) not in sys.path:
+    sys.path.insert(0, str(_app_dir))
+
 import asyncio
 import logging
 import time

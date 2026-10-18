@@ -3,8 +3,9 @@ import os
 from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
-LOCAL_ENV = Path(__file__).resolve().parent.parent / ".env"
+_parents = Path(__file__).resolve().parents
+PROJECT_ROOT = _parents[3] if len(_parents) > 3 else _parents[0]
+LOCAL_ENV = PROJECT_ROOT / ".env"
 
 
 class Settings(BaseSettings):

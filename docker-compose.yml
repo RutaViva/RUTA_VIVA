@@ -3,14 +3,20 @@ services:
     image: postgres:16
     container_name: rutaviva_postgres
     restart: always
-    # El archivo .env está en la raíz del proyecto actual.
     env_file:
       - ./.env
-    # Puerto fijo: tu máquina escucha en 5438 y Docker lo manda al 5432 interno.
     ports:
       - "5438:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d rutaviva_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - rutaviva_network
+
   rabbitmq:
     image: rabbitmq:3.12-management
     container_name: rabbitmq-telemetria
@@ -29,17 +35,102 @@ services:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
-      interval: 30s
-      timeout: 10s
+      interval: 10s
+      timeout: 5s
       retries: 5
-      start_period: 40s
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-        reservations:
-          memory: 1G
+      start_period: 20s
+    networks:
+      - rutaviva_network
+
+  multiplier_api:
+    build:
+      context: ./services/multiplier_api
+      dockerfile: Dockerfile
+    container_name: rutaviva_multiplier_api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+psycopg://admin:admin1234@db:5432/rutaviva_db
+      - FRESHNESS_THRESHOLD_SECONDS=300
+      - AUDITOR_API_KEY=auditor-secret-token
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - rutaviva_network
+
+  pressure_worker:
+    build:
+      context: ./services/pressure_worker
+      dockerfile: Dockerfile
+    container_name: rutaviva_pressure_worker
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql+psycopg://admin:admin1234@db:5432/rutaviva_db
+      - RABBITMQ_URL=amqp://admin:admin1234@rabbitmq:5672/
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - rutaviva_network
+
+  telemetry_simulator:
+    build:
+      context: ./services/telemetry_simulator
+      dockerfile: Dockerfile
+    container_name: rutaviva_telemetry_simulator
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql+psycopg://admin:admin1234@db:5432/rutaviva_db
+      - RABBITMQ_URL=amqp://admin:admin1234@rabbitmq:5672/
+      - SILENT_VEHICLES_PCT=5.0
+      - OUT_OF_CITY_PCT=3.0
+      - DEFECT_DELAY_SECONDS=60
+    volumes:
+      - ./services/seed_cli/app/data/shapefiles:/app/data/shapefiles:ro
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - rutaviva_network
+
+  request_simulator:
+    build:
+      context: ./services/request_simulator
+      dockerfile: Dockerfile
+    container_name: rutaviva_request_simulator
+    restart: unless-stopped
+    environment:
+      - API_URL=http://multiplier_api:8000
+      - REQUESTS_PER_SECOND=8.0
+    depends_on:
+      - multiplier_api
+    networks:
+      - rutaviva_network
+
+  weather_worker:
+    build:
+      context: ./services/weather-api
+      dockerfile: Dockerfile
+    container_name: rutaviva_weather_worker
+    restart: "no"
+    environment:
+      - DATABASE_URL=postgresql+psycopg://admin:admin1234@db:5432/rutaviva_db
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - rutaviva_network
 
 volumes:
   pg_data:
   rabbitmq_data:
+
+networks:
+  rutaviva_network:
+    driver: bridge

@@ -80,8 +80,19 @@ def upload_current_weather() -> datetime:
 
 
 if __name__ == "__main__":
-    uploaded_hour = upload_current_weather()
-    print(
-        f"Precipitación del centro de NYC para {uploaded_hour.isoformat()} "
-        "guardada en weather_current."
-    )
+    import time
+    import sys
+    run_once = "--once" in sys.argv
+    while True:
+        try:
+            uploaded_hour = upload_current_weather()
+            print(
+                f"Precipitación para {uploaded_hour.isoformat()} "
+                "guardada en weather_current."
+            )
+        except Exception as e:
+            print(f"Error consultando el clima: {e}")
+
+        if run_once:
+            break
+        time.sleep(3600)

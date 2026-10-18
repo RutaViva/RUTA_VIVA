@@ -152,7 +152,7 @@ DEFECT_DELAY_SECONDS=60        # Segundos antes de activar los defectos
 Para correr la suite de pruebas automatizadas del simulador:
 ```bash
 # Desde la raíz del proyecto
-pytest services/telemetry_simulator/tests/ -v
+uv run pytest services/telemetry_simulator/tests/ -v
 ```
 
 Resultado esperado:
@@ -161,13 +161,21 @@ test_mensaje_tiene_los_campos_del_contrato PASSED
 test_los_vehiculos_siempre_se_mueven_dentro_de_la_ciudad PASSED
 test_porcentajes_de_defectos_son_exactos_y_disjuntos PASSED
 test_coordenadas_defectuosas_quedan_fuera_de_la_ciudad PASSED
-4 passed
+6 passed
 ```
 
 ### Ejecutar el Simulador en Vivo
-Asegúrate de que PostgreSQL y RabbitMQ estén levantados (`docker compose up -d`) y que la base tenga datos del seeder:
+
+#### Opción A: Mediante Docker Compose (Contenedor)
+El contenedor monta automáticamente las geometrías de zonas en `/app/data/shapefiles` y ejecuta el generador:
 ```bash
-# Ejecutar el bucle de telemetría
-python -m services.telemetry_simulator.app.telemetry_generator
+docker compose up -d telemetry_simulator
+docker compose logs -f telemetry_simulator
+```
+
+#### Opción B: Localmente con `uv`
+Asegúrate de que PostgreSQL y RabbitMQ estén levantados (`docker compose up -d db rabbitmq`):
+```bash
+uv run python -m services.telemetry_simulator.app.telemetry_generator
 ```
 Verás en consola la carga de vehículos, el plan de defectos configurado y la publicación periódica en lotes de 500 mensajes cada 15 segundos hacia la cola `telemetria.vehiculos`.

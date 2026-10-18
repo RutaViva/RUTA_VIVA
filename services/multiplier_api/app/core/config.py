@@ -1,17 +1,13 @@
 # app/core/config.py
 from pydantic_settings import BaseSettings, SettingsConfigDict
-# De pydantic_settings.BaseSettings se heredan las clases de configuración de la app.
 
 
 class Settings(BaseSettings):
-    # Sin valor por defecto: si falta, la app falla al arrancar
-    # en vez de conectarse a una base equivocada.
-    database_url: str
-    # Umbral de frescura de computed_at (RNF-02: 5 min por defecto).
+    database_url: str = "postgresql+psycopg://admin:admin1234@localhost:5438/rutaviva_db"
     freshness_threshold_seconds: int = 300
-    # 
+    auditor_api_key: str = "auditor-secret-token"
 
-    model_config = SettingsConfigDict(env_file=".env")
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
 settings = Settings()

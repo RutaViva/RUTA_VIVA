@@ -9,6 +9,7 @@ from app.core.database import get_db
 router = APIRouter(prefix="/health", tags=["health"])
 
 
+@router.get("")
 @router.get("/live")
 def live():
     # "Estoy vivo": no toca la BD (separado de "ready" a propósito).
