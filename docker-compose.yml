@@ -118,7 +118,7 @@ services:
       context: ./services/weather-api
       dockerfile: Dockerfile
     container_name: rutaviva_weather_worker
-    restart: "no"
+    restart: unless-stopped
     environment:
       - DATABASE_URL=postgresql+psycopg://admin:admin1234@db:5432/rutaviva_db
     depends_on:

@@ -1,5 +1,18 @@
 import os
 from datetime import datetime, timezone
+from pathlib import Path
+
+# Cargar automáticamente .env si no existe DATABASE_URL en el entorno
+if not os.getenv("DATABASE_URL"):
+    try:
+        from dotenv import load_dotenv
+        for parent in Path(__file__).resolve().parents:
+            env_file = parent / ".env"
+            if env_file.exists():
+                load_dotenv(env_file)
+                break
+    except ImportError:
+        pass
 
 import requests
 from sqlalchemy import create_engine, text
@@ -9,13 +22,13 @@ URL = "https://api.open-meteo.com/v1/forecast"
 NYC_CENTER_LATITUDE = 40.7128
 NYC_CENTER_LONGITUDE = -74.0060
 HOURLY_RAIN_VARIABLE = "rain"
+DEFAULT_LOCAL_DB_URL = "postgresql+psycopg://admin:admin1234@localhost:5438/rutaviva_db"
+#Variable de entorno para la URL de la base de datos, si no se proporciona, se usa la predeterminada
 
 
 def upload_current_weather() -> datetime:
     """Consulta la lluvia del centro de NYC y la guarda para la hora UTC actual."""
-    database_url = os.getenv("DATABASE_URL")
-    if not database_url:
-        raise RuntimeError("La variable de entorno DATABASE_URL no está configurada.")
+    database_url = os.getenv("DATABASE_URL") or DEFAULT_LOCAL_DB_URL
 
     params = {
         "latitude": NYC_CENTER_LATITUDE,
