@@ -126,6 +126,44 @@ services:
         condition: service_healthy
     networks:
       - rutaviva_network
+      
+  spark-master:
+    image: apache/spark:3.5.1
+    container_name: spark-master
+    command: /opt/spark/sbin/start-master.sh
+    ports:
+      - "8080:8080" # Spark Master Web UI
+      - "7077:7077" # Puerto del Spark Master
+    volumes:
+      - .:/opt/spark/work-dir
+    networks:
+      - rutaviva_network
+
+  spark-worker-1:
+    image: apache/spark:3.5.1
+    container_name: spark-worker-1
+    command: /opt/spark/sbin/start-worker.sh spark://spark-master:7077
+    environment:
+      - SPARK_WORKER_MEMORY=1G
+      - SPARK_WORKER_CORES=1
+    depends_on:
+      - spark-master
+    volumes:
+      - .:/opt/spark/work-dir
+    networks:
+      - rutaviva_network
+
+  jupyter:
+    image: jupyter/pyspark-notebook:latest
+    container_name: jupyter-pyspark
+    ports:
+      - "8888:8888" # Web UI de Jupyter Notebook
+    volumes:
+      - .:/home/jovyan/work
+    networks:
+      - rutaviva_network
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
 
 volumes:
   pg_data:
