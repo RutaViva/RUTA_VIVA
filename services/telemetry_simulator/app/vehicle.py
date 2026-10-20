@@ -1,11 +1,12 @@
 # vehicle.py
 import datetime
 import random
+import time
 from typing import Optional, Tuple
 from config import (
     LAT_MIN, LAT_MAX, LON_MIN, LON_MAX,
     VELOCIDAD_MIN_KMH, VELOCIDAD_MAX_KMH,
-    PROBABILIDADES_TRANSICION,
+    PROBABILIDADES_TRANSICION, ESTADOS_OPERATIVOS,
 )
 from zone_locator import ZoneLocator
 
@@ -29,6 +30,34 @@ class Vehiculo:
         self.velocidad_kmh = random.uniform(VELOCIDAD_MIN_KMH, VELOCIDAD_MAX_KMH)
         self.direccion = random.uniform(0, 2 * 3.14159)
         self.estado = status
+        self._ultimo_reporte_monotonic = time.monotonic()
+        self._sin_reporte_marcado_offline = False
+
+    @property
+    def puede_reportar_telemetria(self) -> bool:
+        return self.estado in ESTADOS_OPERATIVOS
+
+    def registrar_reporte_telemetria(self) -> None:
+        self._ultimo_reporte_monotonic = time.monotonic()
+
+    def marcar_offline_si_sin_telemetria(
+        self,
+        tiempo_limite: float,
+        ahora: Optional[float] = None,
+    ) -> bool:
+        """Marca offline una sola vez cuando vence el plazo desde el último reporte."""
+        if self._sin_reporte_marcado_offline:
+            self.estado = "offline"
+            return False
+
+        if ahora is None:
+            ahora = time.monotonic()
+        if ahora - self._ultimo_reporte_monotonic < tiempo_limite:
+            return False
+
+        self.estado = "offline"
+        self._sin_reporte_marcado_offline = True
+        return True
 
     def tick(self, intervalo_segundos: float = 15.0):
         """Avanza el vehículo un paso de simulación."""

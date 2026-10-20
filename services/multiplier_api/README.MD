@@ -377,12 +377,98 @@ Cada regla de negocio (RN-xx) debe quedar trazada a código y a **al menos una p
 
 ## 7. Endpoints del servicio
 
-| Método y ruta | Estado | Capas involucradas |
-|---|---|---|
-| `GET /health/live`, `GET /health/ready` | Hecho | `routers/health.py` |
-| `GET /zones/{zone_id}/multiplier` | Hecho | `multiplier` + `zone_state` |
-| `GET /zones/{zone_id}` | Hecho | `zones` + `zone` |
-| `POST /trip-requests` | Pendiente | `trip_request`, `fare_audit` (RN-07, RN-12) |
-| `GET /audit/{trip_id}` | Pendiente | `fare_audit` (rol auditor, 401/403/404) |
+| Método y ruta | Estado | Capas involucradas | Propósito |
+|---|:---:|---|---|
+| `GET /health` / `GET /health/live` | ✅ Hecho | `routers/health.py` | Liveness probe para orquestadores y balanceadores |
+| `GET /health/ready` | ✅ Hecho | `routers/health.py` + DB | Readiness probe (valida conexión a PostgreSQL) |
+| `GET /zones/{zone_id}/multiplier` | ✅ Hecho | `multiplier_service` + `zone_state_repo` | Consulta el multiplicador vigente (con degradación segura RNF-04) |
+| `GET /zones/{zone_id}` | ✅ Hecho | `zone_service` + `zone_repo` | Detalle geográfico de la zona TLC |
+| `POST /trip-requests` | ✅ Hecho | `trip_request_service` + `trip_request_repo` | Crea solicitud de viaje y congela atómicamente la tarifa (RN-07, RN-12) |
+| `POST /trip-requests/{trip_id}/assign` | ✅ Hecho | `trip_request_service` | Marca la solicitud como asignada a un conductor |
+| `POST /trip-requests/{trip_id}/cancel` | ✅ Hecho | `trip_request_service` | Cancela la solicitud de viaje |
+| `GET /audit/{trip_id}` | ✅ Hecho | `audit_service` + `fare_audit_repo` | Reconstruye la tarifa matemáticamente con rol auditor (RF-04, RNF-06, CA-05) |
 
-> Antes de `POST /trip-requests`: `fare_audit` aún no tiene la columna `degraded` (pendiente en la documentación de arquitectura). Requiere migración de Alembic.
+---
+
+## 8. Casos de Uso y Ejemplos de Petición
+
+### 8.1 Crear Solicitud de Viaje (`POST /trip-requests`)
+- **Qué se hizo**: Endpoint transaccional que recibe la zona de origen y la tarifa base estimada.
+- **Cómo se hizo**: Consulta el multiplicador vigente en ese segundo exacto (`requested_at`), calcula `charged_fare = base_fare * multiplier`, e inserta en `trip_request` y `fare_audit` dentro de una misma transacción ACID.
+- **Por qué se hizo**: Cumple **RN-07** (la tarifa cobrada se congela en la solicitud, no en la asignación) y **RN-12** (registro inmutable obligatorio).
+
+#### Opción A: Con tarifa base explícita
+```bash
+curl -X POST http://localhost:8000/trip-requests \
+  -H "Content-Type: application/json" \
+  -d '{
+    "zone_id": 1,
+    "base_fare": 15.00
+  }'
+```
+
+#### Opción B: Con cálculo automático de tarifa base (RN-01)
+Si no envías `base_fare`, la API calcula automáticamente la tarifa base fija:
+$$\text{Base} = \$1.50 + (\$0.35 \times \text{km}) + (\$0.15 \times \text{min})$$
+
+```bash
+curl -X POST http://localhost:8000/trip-requests \
+  -H "Content-Type: application/json" \
+  -d '{
+    "origin_zone_id": 1,
+    "destination_zone_id": 2,
+    "estimated_distance_km": 7.5,
+    "estimated_duration_min": 18.0
+  }'
+```
+
+**Respuesta exitosa (`201 Created`):**
+```json
+{
+  "trip_id": "44342d14-d30d-4552-b1d1-933e87f947c0",
+  "zone_id": 1,
+  "requested_at": "2026-10-18T22:56:51.819774Z",
+  "status": "created",
+  "base_fare": 6.82,
+  "multiplier": 1.80,
+  "charged_fare": 12.28,
+  "degraded": false
+}
+```
+
+---
+
+### 8.2 Reconstruir Auditoría de Tarifa (`GET /audit/{trip_id}`)
+- **Qué se hizo**: Endpoint protegido para reconstrucción histórica de la tarifa cobrada.
+- **Cómo se hizo**: Recupera la fila correspondiente en `fare_audit` validando las credenciales de auditor mediante cabeceras flexibles (`X-User-Role: auditor` / `X-Auditor-Role: auditor` o `X-Audit-Token` / `X-Auditor-Key`).
+- **Por qué se hizo**: Cumple **RF-04** (API de auditoría), **RNF-05** (reconstrucción de cualquier viaje en 24 meses), **RNF-06** (seguridad por rol auditor) y **CA-05**.
+
+```bash
+curl -X GET http://localhost:8000/audit/44342d14-d30d-4552-b1d1-933e87f947c0 \
+  -H "X-User-Role: auditor" \
+  -H "X-Audit-Token: audit-secret-token"
+```
+
+**Respuesta exitosa (`200 OK`):**
+```json
+{
+  "trip_id": "44342d14-d30d-4552-b1d1-933e87f947c0",
+  "base_fare": 6.82,
+  "multiplier": 1.80,
+  "charged_fare": 12.28,
+  "pressure_index": 4.0,
+  "rain_mm_h": 0.0,
+  "rule_version_id": 1,
+  "degraded": false
+}
+```
+
+**Respuesta sin autorización (`403 Forbidden`):**
+```bash
+curl -X GET http://localhost:8000/audit/44342d14-d30d-4552-b1d1-933e87f947c0
+```
+```json
+{
+  "detail": "Acceso denegado: se requieren credenciales válidas de rol auditor (RNF-06)."
+}
+```

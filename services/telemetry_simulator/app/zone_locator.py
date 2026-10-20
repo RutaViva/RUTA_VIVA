@@ -1,17 +1,16 @@
 import geopandas as gpd
 from shapely.geometry import Point
 
+from pathlib import Path
 from config import PROJECT_ROOT
 
-ZONE_SHAPEFILE = (
-    PROJECT_ROOT
-    / "services"
-    / "seed_cli"
-    / "app"
-    / "data"
-    / "shapefiles"
-    / "taxi_zones.shp"
-)
+_candidates = [
+    Path("/app/data/shapefiles/taxi_zones.shp"),
+    Path(__file__).resolve().parent / "data" / "shapefiles" / "taxi_zones.shp",
+    PROJECT_ROOT / "services" / "seed_cli" / "app" / "data" / "shapefiles" / "taxi_zones.shp",
+    Path("services/seed_cli/app/data/shapefiles/taxi_zones.shp").resolve(),
+]
+ZONE_SHAPEFILE = next((p for p in _candidates if p.exists()), _candidates[2])
 
 
 class ZoneLocator:

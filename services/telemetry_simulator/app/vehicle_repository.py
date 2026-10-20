@@ -25,8 +25,27 @@ def cargar_estados_iniciales() -> list[EstadoInicialVehiculo]:
             rows = connection.execute(
                 text(
                     """
+                    WITH operational_vehicles AS (
+                        SELECT
+                            state.vehicle_id,
+                            state.zone_id,
+                            state.latitude,
+                            state.longitude,
+                            state.status,
+                            ROW_NUMBER() OVER (
+                                PARTITION BY vehicle.driver_id
+                                ORDER BY
+                                    CASE state.status WHEN 'busy' THEN 0 ELSE 1 END,
+                                    state.vehicle_id
+                            ) AS driver_vehicle_rank
+                        FROM vehicle_state AS state
+                        JOIN vehicle
+                            ON vehicle.vehicle_id = state.vehicle_id
+                        WHERE state.status IN ('available', 'busy')
+                    )
                     SELECT vehicle_id, zone_id, latitude, longitude, status
-                    FROM vehicle_state
+                    FROM operational_vehicles
+                    WHERE driver_vehicle_rank = 1
                     ORDER BY vehicle_id
                     """
                 )
