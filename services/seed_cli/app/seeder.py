@@ -31,17 +31,20 @@ GEOJSON_PATH = os.path.join(DATA_DIR, "geojson", "sync_taxi_zones.geojson")
 df = pd.read_csv(CSV_PATH)
 zone_ids = df["LocationID"].tolist()
 
-# Determinamos si hay o no una seed.
-if SEED is not None:
-    SEED = int(SEED)
-# Valor default para reproducibilidad de resultados.
-elif SEED is None:
-    SEED = 1230821048148
-    NP_SEED = 45
+def init_seeds(custom_seed: Optional[int] = None, custom_np_seed: Optional[int] = None):
+    global SEED, NP_SEED
+    env_s = os.getenv("SEED")
+    env_np = os.getenv("NP_SEED")
+    s = custom_seed if custom_seed is not None else (int(env_s) if env_s is not None else 1230821048148)
+    np_s = custom_np_seed if custom_np_seed is not None else (int(env_np) if env_np is not None else 45)
+    SEED = s
+    NP_SEED = np_s
+    random.seed(s)
+    Faker.seed(s)
+    np.random.seed(np_s)
 
-random.seed(SEED)
-Faker.seed(SEED)
-np.random.seed(NP_SEED)
+
+init_seeds()
 
 # Coordenadas aproximadas del área metropolitana de Nueva York
 LAT_MIN, LAT_MAX = 40.4900, 40.9200
@@ -80,17 +83,30 @@ def generate_drivers(count: int) -> List[Dict[str, Any]]:
 
 def generate_vehicles(
     driver_ids: List[uuid.UUID],
-    min_vehicles_per_driver: int = 0,
+    min_vehicles_per_driver: int = 1,
     max_vehicles_per_driver: int = 2,
+    target_vehicles: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
     """
     Genera vehículos asignando entre min y max vehículos a cada conductor (Relación 1 a N).
+    Si target_vehicles está especificado, garantiza exactamente esa cantidad total de vehículos.
     """
     vehicles = []
     used_plates = set()
+    n_drivers = len(driver_ids)
+    if n_drivers == 0:
+        return []
 
-    for d_id in driver_ids:
-        num_vehicles = random.randint(min_vehicles_per_driver, max_vehicles_per_driver)
+    if target_vehicles is not None:
+        base_count = target_vehicles // n_drivers
+        remainder = target_vehicles % n_drivers
+        counts = [base_count] * n_drivers
+        for i in range(remainder):
+            counts[i] += 1
+    else:
+        counts = [random.randint(min_vehicles_per_driver, max_vehicles_per_driver) for _ in driver_ids]
+
+    for d_id, num_vehicles in zip(driver_ids, counts):
         for _ in range(num_vehicles):
             # Generar placa única.
             while True:
@@ -222,21 +238,22 @@ zones_gdf.to_file(GEOJSON_PATH, driver="GeoJSON")
 if zones_gdf.crs != "EPSG:4326":
     zones_gdf = zones_gdf.to_crs(epsg=4326)
 
-def generate_coordinates_and_random_zone(zones_gdf):
-    # 1. Seleccionar una zona aleatoria del dataset
-    zona = zones_gdf.sample(1).iloc[0]
-    poligono = zona['geometry']
+zones_cache = [
+    (int(row["LocationID"]), str(row["zone"]), row["geometry"], row["geometry"].bounds)
+    for _, row in zones_gdf.iterrows()
+]
+
+def generate_coordinates_and_random_zone(zones_gdf=None):
+    # 1. Seleccionar una zona aleatoria del dataset en memoria O(1)
+    loc_id, zone_name, poligono, (min_lon, min_lat, max_lon, max_lat) = random.choice(zones_cache)
     
-    # 2. Obtenemos el bounding box exacto de ESA zona (no de todo NYC)
-    min_lon, min_lat, max_lon, max_lat = poligono.bounds
-    
-    # 3. Generamos puntos dentro de ese recuadro pequeño hasta acertar en el polígono
+    # 2. Generamos puntos dentro del bounding box hasta acertar en el polígono
     while True:
         lat = round(random.uniform(min_lat, max_lat), 6)
         lon = round(random.uniform(min_lon, max_lon), 6)
         
         if poligono.contains(Point(lon, lat)):
-            return lat, lon, zona['LocationID'], zona['zone']
+            return lat, lon, loc_id, zone_name
 
 
 def generate_vehicle_states(

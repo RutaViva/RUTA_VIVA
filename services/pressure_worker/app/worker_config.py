@@ -16,8 +16,8 @@ class Settings(BaseSettings):
     queue_name: str = "telemetria.vehiculos"
     routing_key: str = "vehiculo.telemetria"
 
-    # Batching & Intervals
-    batch_size: int = 200
+    # Batching & Intervals (optimizado para flujo de 8.000 vehículos = ~533 msg/s)
+    batch_size: int = 1000
     flush_interval_seconds: float = 3.0
     calculation_interval_seconds: float = 30.0  # Recalcula zone_state cada 30s (o máx 5 min por RN-02)
 

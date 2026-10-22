@@ -1,0 +1,75 @@
+name: CI - RutaViva Backend & Quality Gate
+
+on:
+  push:
+    branches: [ "main", "develop", "feature/**" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test-and-lint:
+    name: Lint, Secret Scan & Unit Tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: admin1234
+          POSTGRES_DB: rutaviva_db
+        ports:
+          - 5438:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Código
+        uses: actions/checkout@v4
+
+      - name: Instalar uv (Python Package Manager)
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Configurar Python 3.12
+        run: uv python install 3.12
+
+      - name: Instalar Dependencias del Monorepo
+        run: uv sync --all-extras --dev
+
+      - name: Detección de Secretos y Hardcoded Tokens (CT-02)
+        run: |
+          echo "Ejecutando escaneo preventivo de secretos..."
+          # Validar que no existan claves privadas o contraseñas en código fuente
+          ! grep -rE "PRIVATE KEY|BEGIN RSA|aws_secret_access_key" services/ --exclude="*.pyc"
+
+      - name: Inicializar Esquema en PostgreSQL
+        env:
+          DATABASE_URL: postgresql+psycopg://admin:admin1234@localhost:5438/rutaviva_db
+        run: |
+          sudo apt-get install -y postgresql-client
+          PGPASSWORD=admin1234 psql -h localhost -p 5438 -U admin -d rutaviva_db -f infra/init.sql
+
+      - name: Configurar Java 17 (PySpark)
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Ejecutar Suite Completa de Pruebas (Pytest Backend & Batch)
+        env:
+          DATABASE_URL: postgresql+psycopg://admin:admin1234@localhost:5438/rutaviva_db
+          RABBITMQ_URL: amqp://admin:admin1234@localhost:5672/
+          AUDITOR_API_KEY: auditor-secret-token
+        run: |
+          ln -sfn spark-jobs batch/spark_jobs || true
+          uv run pytest services/ $([ -d batch/tests ] && echo batch/tests/) -v --junitxml=junit.xml
+
+      - name: Validar Sintaxis de Docker Compose
+        run: |
+          docker compose config --quiet

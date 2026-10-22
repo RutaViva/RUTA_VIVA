@@ -78,6 +78,16 @@ def upload_current_weather() -> datetime:
             connection.execute(
                 text(
                     """
+                    CREATE TABLE IF NOT EXISTS weather_current (
+                        valid_hour TIMESTAMPTZ PRIMARY KEY,
+                        rain_mm_h  DOUBLE PRECISION NOT NULL CHECK (rain_mm_h >= 0)
+                    )
+                    """
+                )
+            )
+            connection.execute(
+                text(
+                    """
                     INSERT INTO weather_current (valid_hour, rain_mm_h)
                     VALUES (:valid_hour, :rain_mm_h)
                     ON CONFLICT (valid_hour)
