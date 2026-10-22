@@ -2,10 +2,9 @@
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import DateTime, Numeric, Float, Integer
-from sqlalchemy.orm import Mapped, mapped_column
-
 from app.core.database import Base
+from sqlalchemy import DateTime, Float, Integer, Numeric
+from sqlalchemy.orm import Mapped, mapped_column
 
 
 class ZoneState(Base):

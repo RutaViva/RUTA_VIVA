@@ -1,10 +1,9 @@
 # app/routers/health.py
+from app.core.database import get_db
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
-
-from app.core.database import get_db
 
 router = APIRouter(prefix="/health", tags=["health"])
 

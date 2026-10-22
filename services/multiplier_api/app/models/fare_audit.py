@@ -2,11 +2,10 @@
 import uuid
 from decimal import Decimal
 
+from app.core.database import Base
 from sqlalchemy import Float, ForeignKey, Integer, Numeric
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
-from app.core.database import Base
 
 
 class FareAudit(Base):
@@ -24,4 +23,4 @@ class FareAudit(Base):
         Integer, ForeignKey("tariff_rule_version.rule_version_id"), nullable=False
     )
 
-    trip: Mapped["TripRequest"] = relationship("TripRequest", back_populates="audit")
+    trip: Mapped["TripRequest"] = relationship("TripRequest", back_populates="audit")  # noqa: F821

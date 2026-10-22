@@ -2,30 +2,18 @@
 Script principal de ejecución CLI para el Seeding de Datos.
 Administra lotes, transacciones, argumentos de consola e inserción ordenada.
 """
-import sys
 import argparse
 import logging
 import time
-from typing import Any, Dict, List, Type
+from typing import Any
 
-from sqlalchemy import insert
+from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import (
+    insert as pg_insert,  # reemplaza "from sqlalchemy import insert"
+)
 from sqlalchemy.orm import Session
-from sqlalchemy.dialects.postgresql import insert as pg_insert  # reemplaza "from sqlalchemy import insert"
-from sqlalchemy import select, func
-from .models import Driver, Vehicle, Zone
 
 from .database import SessionLocal, clean_database, engine
-from .seeder import (
-    apply_driver_status,
-    generate_drivers,
-    generate_licenses,
-    generate_sanctions,
-    generate_vehicles,
-    generate_driver_vehicle_states,
-    generate_zones,
-    init_seeds,
-    zones_gdf,
-)
 from .models import (
     Driver,
     License,
@@ -33,6 +21,17 @@ from .models import (
     Vehicle,
     VehicleState,
     Zone,
+)
+from .seeder import (
+    apply_driver_status,
+    generate_driver_vehicle_states,
+    generate_drivers,
+    generate_licenses,
+    generate_sanctions,
+    generate_vehicles,
+    generate_zones,
+    init_seeds,
+    zones_gdf,
 )
 
 # Configuración de Logging
@@ -44,7 +43,7 @@ logger = logging.getLogger("DataSeeder")
 logger.info(f"engine.url: {engine.url}")
 
 
-def bulk_insert_in_chunks(session: Session, model_cls: Type, data: List[Dict[str, Any]], chunk_size: int = 5000):
+def bulk_insert_in_chunks(session: Session, model_cls: type, data: list[dict[str, Any]], chunk_size: int = 5000):
     """
     Inserta en lotes ignorando filas que ya existen (misma PK/UNIQUE).
     Así el seed es idempotente: ejecutarlo dos veces no duplica ni falla.

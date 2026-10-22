@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 # Cargar automáticamente .env si no existe DATABASE_URL en el entorno
@@ -16,7 +16,6 @@ if not os.getenv("DATABASE_URL"):
 
 import requests
 from sqlalchemy import create_engine, text
-
 
 URL = "https://api.open-meteo.com/v1/forecast"
 NYC_CENTER_LATITUDE = 40.7128
@@ -37,7 +36,7 @@ def upload_current_weather() -> datetime:
         "timezone": "UTC",
     }
 
-    current_hour = datetime.now(timezone.utc).replace(
+    current_hour = datetime.now(UTC).replace(
         minute=0, second=0, microsecond=0
     )
 
@@ -103,8 +102,8 @@ def upload_current_weather() -> datetime:
 
 
 if __name__ == "__main__":
-    import time
     import sys
+    import time
     run_once = "--once" in sys.argv
     while True:
         try:

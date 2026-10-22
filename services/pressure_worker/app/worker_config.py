@@ -1,5 +1,6 @@
 # services/pressure_worker/app/worker_config.py
 from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _parents = Path(__file__).resolve().parents

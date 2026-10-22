@@ -43,3 +43,16 @@ pythonpath = [
     "services/seed_cli/app",
     "services/request_simulator/app",
 ]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.17.2",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = ["E402", "E501", "E712"]

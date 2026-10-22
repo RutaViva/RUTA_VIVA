@@ -1,11 +1,10 @@
 # services/pressure_worker/tests/test_pressure_rules.py
-from datetime import datetime, timezone
-import pytest
+from datetime import UTC, datetime
 
 from pressure_calculator import (
-    calculate_base_step,
     apply_rain_step,
     apply_regulatory_caps,
+    calculate_base_step,
 )
 
 
@@ -42,12 +41,12 @@ def test_rn04_rain_penalty_step():
 def test_rn05_absolute_and_night_caps():
     """RN-05: El multiplicador nunca supera 2.0 y entre 22:00 y 05:00 nunca supera 1.5."""
     # Franja diurna (14:00 NYC = 18:00 UTC)
-    day_utc = datetime(2026, 10, 15, 18, 0, tzinfo=timezone.utc)
+    day_utc = datetime(2026, 10, 15, 18, 0, tzinfo=UTC)
     assert apply_regulatory_caps(2.5, day_utc) == 2.0
     assert apply_regulatory_caps(1.8, day_utc) == 1.8
 
     # Franja nocturna (23:30 NYC = 03:30 UTC del día siguiente)
-    night_utc = datetime(2026, 10, 16, 3, 30, tzinfo=timezone.utc)
+    night_utc = datetime(2026, 10, 16, 3, 30, tzinfo=UTC)
     assert apply_regulatory_caps(1.8, night_utc) == 1.5
     assert apply_regulatory_caps(2.0, night_utc) == 1.5
     assert apply_regulatory_caps(1.2, night_utc) == 1.2
@@ -58,7 +57,7 @@ def test_ca02_combined_case_acceptance():
     pressure = 3.5
     rain_mm_h = 5.0
     # 23:30 NYC -> 03:30 UTC
-    current_time_utc = datetime(2026, 10, 16, 3, 30, tzinfo=timezone.utc)
+    current_time_utc = datetime(2026, 10, 16, 3, 30, tzinfo=UTC)
 
     # 1. Base step para presión 3.5 (RN-03: > 3.0 -> 1.8)
     base_mult = calculate_base_step(pressure)
@@ -81,14 +80,15 @@ def test_rn09_exclude_suspended_and_expired_drivers_ca21():
     Then that driver never appears in the result.
     """
     import uuid
-    from datetime import date, datetime, timezone, timedelta
+    from datetime import date, datetime, timedelta
+
     from database import SessionLocal
-    from models import Driver, Vehicle, License, Sanction, VehicleState
+    from models import Driver, License, Sanction, Vehicle, VehicleState
     from pressure_calculator import get_available_supply_query
 
     session = SessionLocal()
     today = date(2026, 10, 21)
-    cutoff = datetime(2026, 10, 21, 12, 0, tzinfo=timezone.utc) - timedelta(seconds=120)
+    cutoff = datetime(2026, 10, 21, 12, 0, tzinfo=UTC) - timedelta(seconds=120)
 
     # 1. Driver Válido (activo, licencia vigente, sin sanción) -> DEBE APARECER
     valid_driver_id = uuid.uuid4()
@@ -138,7 +138,7 @@ def test_rn09_exclude_suspended_and_expired_drivers_ca21():
             )
         )
         # Estados disponibles
-        now_ts = datetime(2026, 10, 21, 11, 59, tzinfo=timezone.utc)
+        now_ts = datetime(2026, 10, 21, 11, 59, tzinfo=UTC)
         session.add_all([
             VehicleState(vehicle_id=valid_veh_id, zone_id=161, latitude=40.75, longitude=-73.98, status="available", last_seen_at=now_ts),
             VehicleState(vehicle_id=suspended_veh_id, zone_id=161, latitude=40.75, longitude=-73.98, status="available", last_seen_at=now_ts),

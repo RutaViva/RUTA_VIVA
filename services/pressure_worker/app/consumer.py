@@ -2,15 +2,14 @@
 import asyncio
 import json
 import logging
-from datetime import datetime, timezone
-from typing import List, Dict, Any
+from datetime import UTC, datetime
+from typing import Any
 
 import aio_pika
-from sqlalchemy.dialects.postgresql import insert as pg_insert
-
-from worker_config import settings
 from database import get_db_session
 from models import VehicleState
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from worker_config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -20,8 +19,8 @@ class TelemetryConsumer:
         self.connection = None
         self.channel = None
         self.queue = None
-        self.buffer: List[Dict[str, Any]] = []
-        self.messages_to_ack: List[aio_pika.IncomingMessage] = []
+        self.buffer: list[dict[str, Any]] = []
+        self.messages_to_ack: list[aio_pika.IncomingMessage] = []
         self._lock = asyncio.Lock()
         self.running = False
 
@@ -62,7 +61,7 @@ class TelemetryConsumer:
             for rec in latest_by_vehicle.values():
                 dt = datetime.fromisoformat(rec["last_seen_at"])
                 if dt.tzinfo is None:
-                    dt = dt.replace(tzinfo=timezone.utc)
+                    dt = dt.replace(tzinfo=UTC)
                 values_to_upsert.append(
                     {
                         "vehicle_id": rec["vehicle_id"],

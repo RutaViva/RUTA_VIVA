@@ -2,11 +2,16 @@
 import asyncio
 import json
 import logging
+
 import aio_pika
-from aio_pika import Message, DeliveryMode
+from aio_pika import DeliveryMode, Message
 from config import (
-    RABBITMQ_URL, EXCHANGE_NAME, QUEUE_NAME, ROUTING_KEY,
-    PUBLISHER_CONFIRMS, MAX_CONCURRENCIA,
+    EXCHANGE_NAME,
+    MAX_CONCURRENCIA,
+    PUBLISHER_CONFIRMS,
+    QUEUE_NAME,
+    RABBITMQ_URL,
+    ROUTING_KEY,
 )
 
 logger = logging.getLogger(__name__)

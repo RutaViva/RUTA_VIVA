@@ -40,11 +40,18 @@ def test_seeder_idempotency_ca22():
     When run twice,
     Then the data remains identical (referential integrity without duplicates).
     """
-    import os
-    from sqlalchemy import select, func
+    from sqlalchemy import func, select
+
     from services.seed_cli.app.database import SessionLocal
-    from services.seed_cli.app.models import Driver, Vehicle, Zone, License, Sanction, VehicleState
     from services.seed_cli.app.main import run_seeder
+    from services.seed_cli.app.models import (
+        Driver,
+        License,
+        Sanction,
+        Vehicle,
+        VehicleState,
+        Zone,
+    )
 
     session = SessionLocal()
 

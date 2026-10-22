@@ -10,19 +10,20 @@ if str(_app_dir) not in sys.path:
 import asyncio
 import logging
 import time
+
 from config import (
-    INTERVALO_TELEMETRIA,
-    TAMANO_LOTE,
-    SILENT_VEHICLES_PCT,
-    OUT_OF_CITY_PCT,
     DEFECT_DELAY_SECONDS,
+    INTERVALO_TELEMETRIA,
+    OUT_OF_CITY_PCT,
+    SILENT_VEHICLES_PCT,
+    TAMANO_LOTE,
     TIEMPO_LIMITE_SIN_TELEMETRIA,
 )
-from vehicle import Vehiculo
+from defects import out_of_city_position, plan_defects
 from rabbit_publisher import RabbitPublisher
+from vehicle import Vehiculo
 from vehicle_repository import cargar_estados_iniciales
 from zone_locator import ZoneLocator
-from defects import plan_defects, out_of_city_position
 
 logging.basicConfig(
     level=logging.INFO,

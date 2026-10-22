@@ -1,27 +1,25 @@
 # services/pressure_worker/app/pressure_calculator.py
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import Dict, Any, List
 
-from sqlalchemy import select, func, and_, or_, text
-from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy.orm import Session
-
-from worker_config import settings
 from models import (
-    Zone,
     Driver,
-    Vehicle,
     License,
     Sanction,
+    SpecialEvent,
+    TripRequest,
+    Vehicle,
     VehicleState,
+    WeatherCurrent,
+    Zone,
     ZoneState,
     ZoneStateHistory,
-    TripRequest,
-    WeatherCurrent,
-    SpecialEvent,
 )
+from sqlalchemy import and_, func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.orm import Session
+from worker_config import settings
 
 logger = logging.getLogger(__name__)
 

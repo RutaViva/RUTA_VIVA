@@ -1,10 +1,9 @@
 # app/routers/zones.py
-from fastapi import APIRouter, Depends, HTTPException, Path
-from sqlalchemy.orm import Session
-
 from app.core.database import get_db
 from app.schemas.zone import NameZone
 from app.services import zone_service
+from fastapi import APIRouter, Depends, HTTPException, Path
+from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/zones", tags=["zones"])
 

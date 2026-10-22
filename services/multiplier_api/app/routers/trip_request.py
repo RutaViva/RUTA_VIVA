@@ -1,15 +1,14 @@
 # app/routers/trip_request.py
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, Path, status
-from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.schemas.trip_request import (
     TripCreateRequest,
     TripResponse,
-    TripStatusUpdateRequest,
 )
 from app.services import trip_request_service
+from fastapi import APIRouter, Depends, HTTPException, Path, status
+from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/trip-requests", tags=["trip-requests"])
 

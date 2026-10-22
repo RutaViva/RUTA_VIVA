@@ -1,8 +1,7 @@
 # app/services/zone_service.py
-from sqlalchemy.orm import Session
-
 from app.models.zone import Zone
 from app.repositories import zone_repo
+from sqlalchemy.orm import Session
 
 
 def get_zone(db: Session, zone_id: int) -> Zone | None:
