@@ -68,7 +68,7 @@ flowchart TB
     end
 
     subgraph Analytics & Batch Processing
-        DB -.-> SparkJobs[batch/spark-jobs\nPySpark ETL]
+        DB -.-> SparkJobs[batch/spark_jobs\nPySpark ETL]
         Airflow[batch/dags\nAirflow Scheduler] -->|Trigger| SparkJobs
         OpenMeteo[API Externa Clima] -->|DAG Horario| Airflow
         Airflow -->|Carga weather_current| DB

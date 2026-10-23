@@ -56,7 +56,7 @@ flowchart TD
     end
 
     subgraph Batch Analytics & Airflow
-        PG -.-> Spark[batch/spark-jobs\nETL & Modelos]
+        PG -.-> Spark[batch/spark_jobs\nETL & Modelos]
         AF[batch/dags Airflow] --> Spark
     end
 ```
@@ -80,7 +80,8 @@ rutaviva/
 │   └── request_simulator/        # [Pendiente] Generador simulado de solicitudes de pasajeros
 ├── batch/
 │   ├── dags/                     # [Pendiente] DAGs de Apache Airflow (clima horario, agregaciones)
-│   └── spark-jobs/               # [Pendiente] Jobs distribuidos Apache Spark (limpieza, enriquecimiento)
+│   ├── spark_jobs/               # Jobs PySpark y utilidades compartidas
+│   └── data/                     # Datos y resultados locales de batch
 └── docs/                         # Documentación de arquitectura, diagramas y ADRs
 ```
 

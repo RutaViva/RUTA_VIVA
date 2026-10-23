@@ -128,24 +128,35 @@ services:
       - rutaviva_network
       
   spark-master:
-    image: apache/spark:3.5.1
+    image: rutaviva-spark:4.2.0
+    build:
+      context: .
+      dockerfile: batch/spark_jobs/Dockerfile
     container_name: spark-master
     command: /opt/spark/sbin/start-master.sh
     ports:
-      - "8080:8080" # Spark Master Web UI
-      - "7077:7077" # Puerto del Spark Master
+      - "8080:8080"
+      - "7077:7077"
     volumes:
       - .:/opt/spark/work-dir
+    environment:
+      PYSPARK_PYTHON: /opt/venv/bin/python
+      PYSPARK_DRIVER_PYTHON: /opt/venv/bin/python
     networks:
       - rutaviva_network
 
   spark-worker-1:
-    image: apache/spark:3.5.1
+    image: rutaviva-spark:4.2.0
+    build:
+      context: .
+      dockerfile: batch/spark_jobs/Dockerfile
     container_name: spark-worker-1
     command: /opt/spark/sbin/start-worker.sh spark://spark-master:7077
     environment:
       - SPARK_WORKER_MEMORY=1G
       - SPARK_WORKER_CORES=1
+      - PYSPARK_PYTHON=/opt/venv/bin/python
+      - PYSPARK_DRIVER_PYTHON=/opt/venv/bin/python
     depends_on:
       - spark-master
     volumes:
@@ -154,10 +165,10 @@ services:
       - rutaviva_network
 
   jupyter:
-    image: jupyter/pyspark-notebook:latest
+    image: quay.io/jupyter/pyspark-notebook:spark-4.2.0
     container_name: jupyter-pyspark
     ports:
-      - "8888:8888" # Web UI de Jupyter Notebook
+      - "8888:8888"
     volumes:
       - .:/home/jovyan/work
     networks:

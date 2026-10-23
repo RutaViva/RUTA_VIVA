@@ -7,11 +7,10 @@ import random
 import uuid
 from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional
-import pandas as pd
 from faker import Faker
-import geopandas as gpd
 from shapely.geometry import Point
 import numpy as np
+from .zone_data import load_zone_catalog, load_zones_gdf
 
 # Hay que tener una variable de entorno que defina la seed
 SEED = os.getenv("SEED")
@@ -27,8 +26,8 @@ CSV_PATH = os.path.join(DATA_DIR, "csv", "taxi_zone_lookup.csv")
 SHAPEFILE_PATH = os.path.join(DATA_DIR, "shapefiles", "taxi_zones.shp")
 GEOJSON_PATH = os.path.join(DATA_DIR, "geojson", "sync_taxi_zones.geojson")
 
-# Cargar el CSV de zonas de taxi para obtener los LocationID
-df = pd.read_csv(CSV_PATH)
+# Cargar el catálogo y las geometrías mediante los loaders compartidos.
+df = load_zone_catalog(CSV_PATH)
 zone_ids = df["LocationID"].tolist()
 
 # Determinamos si hay o no una seed.
@@ -214,8 +213,7 @@ def compute_vehicle_status() -> str:
         k=1,
     )[0]
 
-#cargar la carpeta con el .shp
-zones_gdf = gpd.read_file(SHAPEFILE_PATH)
+zones_gdf = load_zones_gdf(SHAPEFILE_PATH, target_crs=None)
 
 #convertir y guardar a GeoJSON
 zones_gdf.to_file(GEOJSON_PATH, driver="GeoJSON")
