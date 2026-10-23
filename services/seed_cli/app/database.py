@@ -4,14 +4,14 @@ Configuración de la conexión a la base de datos y utilidades DDL.
 
 import logging
 import os
+
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
-from .models import Base
 
 logger = logging.getLogger("DataSeeder")
 
 DATABASE_URL = os.getenv(
-    "DATABASE_URL", 
+    "DATABASE_URL",
     "postgresql+psycopg://admin:admin1234@localhost:5438/rutaviva_db"
 )
 

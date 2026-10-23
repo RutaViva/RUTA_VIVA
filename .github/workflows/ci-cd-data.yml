@@ -1,0 +1,125 @@
+name: CI/CD Data - PySpark & Airflow Pipelines (RWI-65, CI/CD II)
+
+on:
+  push:
+    branches: [ "main", "develop", "feature/**" ]
+    paths:
+      - "batch/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/ci-cd-data.yml"
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - "batch/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/ci-cd-data.yml"
+
+jobs:
+  ci-data-quality:
+    name: CI - Syntax Validation, Secret Scan (CT-02) & PySpark Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Código Fuente
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 17 Temurin (PySpark)
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Instalar uv (Python Package Manager)
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Configurar Python 3.12
+        run: uv python install 3.12
+
+      - name: Instalar Dependencias de Datos (PySpark, PyArrow, Pytest)
+        run: uv sync --all-extras --dev
+
+      - name: Escaneo Preventivo de Secretos en Scripts de Datos (CT-02)
+        run: |
+          echo "=========================================================="
+          echo "Auditoría de seguridad CT-02 en módulo batch/..."
+          echo "=========================================================="
+          if grep -rEi "BEGIN (RSA|OPENSSH|EC|DSA|PGP)? PRIVATE KEY" batch/; then
+            echo "ERROR CRÍTICO [CT-02]: Llave privada detectada en batch/."
+            exit 1
+          fi
+
+          if grep -rE "AKIA[0-9A-Z]{16}" batch/; then
+            echo "ERROR CRÍTICO [CT-02]: AWS Access Key ID detectada en scripts batch."
+            exit 1
+          fi
+
+          if grep -rEi "(password|secret_key|api_key|token)\s*=\s*['\"][A-Za-z0-9+/=]{20,}['\"]" batch/ --exclude-dir="tests"; then
+            echo "ERROR CRÍTICO [CT-02]: Credenciales expuestas en scripts batch."
+            exit 1
+          fi
+
+          echo "✅ Escaneo CT-02 en batch/ superado: 0 secretos detectados."
+
+      - name: Validación de Sintaxis y Compilación AST (CI/CD II)
+        run: |
+          echo "Validando sintaxis de scripts PySpark, DAGs y Reportes..."
+          python -m py_compile batch/spark-jobs/common/*.py \
+                               batch/spark-jobs/job1_clean_validate/*.py \
+                               batch/spark-jobs/job2_enrich_model/*.py \
+                               batch/reports/*.py \
+                               batch/dags/*.py \
+                               batch/tests/*.py
+          echo "✅ Compilación de sintaxis Python AST exitosa sin errores."
+
+      - name: Linter en Módulo de Datos (Ruff)
+        run: |
+          uv run ruff check batch/
+
+      - name: Ejecutar Suite de Pruebas PySpark (Unit & Integration)
+        run: |
+          ln -sfn spark-jobs batch/spark_jobs || true
+          uv run pytest batch/tests/ -v --junitxml=junit-data.xml
+
+  cd-data-deploy:
+    name: CD - Sincronizar DAGs & Spark Jobs a AWS S3 / MWAA
+    needs: [ci-data-quality]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Código Fuente
+        uses: actions/checkout@v4
+
+      - name: Configurar AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      - name: Sincronizar DAGs de Airflow a S3
+        if: env.AIRFLOW_DAGS_BUCKET != ''
+        env:
+          AIRFLOW_DAGS_BUCKET: ${{ secrets.AIRFLOW_DAGS_BUCKET }}
+        run: |
+          echo "Sincronizando DAGs hacia s3://${AIRFLOW_DAGS_BUCKET}/dags/..."
+          aws s3 sync batch/dags/ "s3://${AIRFLOW_DAGS_BUCKET}/dags/" --delete
+
+      - name: Sincronizar Jobs PySpark a S3
+        if: env.SPARK_JOBS_BUCKET != ''
+        env:
+          SPARK_JOBS_BUCKET: ${{ secrets.SPARK_JOBS_BUCKET }}
+        run: |
+          echo "Sincronizando Spark jobs hacia s3://${SPARK_JOBS_BUCKET}/spark-jobs/..."
+          aws s3 sync batch/spark-jobs/ "s3://${SPARK_JOBS_BUCKET}/spark-jobs/" --delete
+
+      - name: Resumen de Despliegue de Datos
+        run: |
+          echo "=========================================================="
+          echo "✅ Despliegue de scripts de datos completado exitosamente."
+          echo "=========================================================="

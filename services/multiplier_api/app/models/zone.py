@@ -1,7 +1,6 @@
 # app/models/zone.py
-from sqlalchemy.orm import Mapped, mapped_column
-
 from app.core.database import Base
+from sqlalchemy.orm import Mapped, mapped_column
 
 
 class Zone(Base):

@@ -1,0 +1,707 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "RutaViva Multiplier & Mobility API",
+    "description": "API de cotización de tarifas dinámicas, registro de viajes y auditoría transaccional.",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/health/live": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Live",
+        "operationId": "live_health_live_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Live",
+        "operationId": "live_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Ready",
+        "operationId": "ready_health_ready_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/zones/{zone_id}": {
+      "get": {
+        "tags": [
+          "zones"
+        ],
+        "summary": "Read Zone",
+        "operationId": "read_zone_zones__zone_id__get",
+        "parameters": [
+          {
+            "name": "zone_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 265,
+              "minimum": 1,
+              "title": "Zone Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NameZone"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/zones/{zone_id}/multiplier": {
+      "get": {
+        "tags": [
+          "multiplier"
+        ],
+        "summary": "Read Multiplier",
+        "operationId": "read_multiplier_zones__zone_id__multiplier_get",
+        "parameters": [
+          {
+            "name": "zone_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 265,
+              "minimum": 1,
+              "title": "Zone Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MultiplierResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/trip-requests": {
+      "post": {
+        "tags": [
+          "trip-requests"
+        ],
+        "summary": "Create Trip",
+        "description": "Crea una solicitud de viaje en una zona (F5).\nAplica y congela el multiplicador vigente en el instante de la solicitud (RN-07)\ny genera la traza inmutable en fare_audit (RN-12).",
+        "operationId": "create_trip_trip_requests_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TripCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TripResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/trip-requests/{trip_id}/assign": {
+      "post": {
+        "tags": [
+          "trip-requests"
+        ],
+        "summary": "Assign Trip",
+        "description": "Marca la solicitud como asignada a un vehículo.",
+        "operationId": "assign_trip_trip_requests__trip_id__assign_post",
+        "parameters": [
+          {
+            "name": "trip_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Trip Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/trip-requests/{trip_id}/cancel": {
+      "post": {
+        "tags": [
+          "trip-requests"
+        ],
+        "summary": "Cancel Trip",
+        "description": "Cancela una solicitud de viaje.",
+        "operationId": "cancel_trip_trip_requests__trip_id__cancel_post",
+        "parameters": [
+          {
+            "name": "trip_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Trip Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/audit/{trip_id}": {
+      "get": {
+        "tags": [
+          "audit"
+        ],
+        "summary": "Get Trip Fare Audit",
+        "description": "Reconstruye matemáticamente cómo se calculó la tarifa de cualquier viaje (RF-04, CA-05).\nMuestra multiplicador, presión, clima, versión de reglas y estado de degradación.",
+        "operationId": "get_trip_fare_audit_audit__trip_id__get",
+        "parameters": [
+          {
+            "name": "trip_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID de la solicitud de viaje a auditar",
+              "title": "Trip Id"
+            },
+            "description": "UUID de la solicitud de viaje a auditar"
+          },
+          {
+            "name": "X-Auditor-Role",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Auditor-Role"
+            }
+          },
+          {
+            "name": "X-User-Role",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User-Role"
+            }
+          },
+          {
+            "name": "X-Auditor-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Auditor-Key"
+            }
+          },
+          {
+            "name": "X-Audit-Token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Audit-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FareAuditResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "FareAuditResponse": {
+        "properties": {
+          "trip_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Trip Id"
+          },
+          "base_fare": {
+            "type": "number",
+            "title": "Base Fare"
+          },
+          "multiplier": {
+            "type": "number",
+            "title": "Multiplier"
+          },
+          "charged_fare": {
+            "type": "number",
+            "title": "Charged Fare"
+          },
+          "pressure_index": {
+            "type": "number",
+            "title": "Pressure Index"
+          },
+          "rain_mm_h": {
+            "type": "number",
+            "title": "Rain Mm H"
+          },
+          "rule_version_id": {
+            "type": "integer",
+            "title": "Rule Version Id"
+          },
+          "degraded": {
+            "type": "boolean",
+            "title": "Degraded"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trip_id",
+          "base_fare",
+          "multiplier",
+          "charged_fare",
+          "pressure_index",
+          "rain_mm_h",
+          "rule_version_id",
+          "degraded"
+        ],
+        "title": "FareAuditResponse"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "MultiplierResponse": {
+        "properties": {
+          "zone_id": {
+            "type": "integer",
+            "title": "Zone Id"
+          },
+          "multiplier": {
+            "type": "number",
+            "title": "Multiplier"
+          },
+          "computed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Computed At"
+          },
+          "degraded": {
+            "type": "boolean",
+            "title": "Degraded"
+          }
+        },
+        "type": "object",
+        "required": [
+          "zone_id",
+          "multiplier",
+          "computed_at",
+          "degraded"
+        ],
+        "title": "MultiplierResponse"
+      },
+      "NameZone": {
+        "properties": {
+          "zone_id": {
+            "type": "integer",
+            "title": "Zone Id"
+          },
+          "zone_name": {
+            "type": "string",
+            "title": "Zone Name"
+          },
+          "borough": {
+            "type": "string",
+            "title": "Borough"
+          }
+        },
+        "type": "object",
+        "required": [
+          "zone_id",
+          "zone_name",
+          "borough"
+        ],
+        "title": "NameZone"
+      },
+      "TripCreateRequest": {
+        "properties": {
+          "zone_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 265.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zone Id",
+            "description": "ID de la zona de origen del viaje (1-265)"
+          },
+          "origin_zone_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 265.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin Zone Id",
+            "description": "Alias de zone_id (zona de origen)"
+          },
+          "base_fare": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Fare",
+            "description": "Tarifa base fija estimada para el viaje en USD"
+          },
+          "passenger_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Passenger Id",
+            "description": "UUID del pasajero que solicita el servicio"
+          },
+          "destination_zone_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 265.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Destination Zone Id",
+            "description": "Zona de destino del viaje"
+          },
+          "estimated_distance_km": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Distance Km",
+            "description": "Distancia estimada en kilómetros"
+          },
+          "estimated_duration_min": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Duration Min",
+            "description": "Duración estimada en minutos"
+          }
+        },
+        "type": "object",
+        "title": "TripCreateRequest",
+        "description": "Schema para creación/cotización de solicitudes de viaje.\nPermite tanto el envío directo de 'base_fare' como el cálculo automático\npor distancia y tiempo según la Regla de Negocio RN-01."
+      },
+      "TripResponse": {
+        "properties": {
+          "trip_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Trip Id"
+          },
+          "zone_id": {
+            "type": "integer",
+            "title": "Zone Id"
+          },
+          "requested_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Requested At"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "base_fare": {
+            "type": "number",
+            "title": "Base Fare"
+          },
+          "multiplier": {
+            "type": "number",
+            "title": "Multiplier"
+          },
+          "charged_fare": {
+            "type": "number",
+            "title": "Charged Fare"
+          },
+          "degraded": {
+            "type": "boolean",
+            "title": "Degraded"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trip_id",
+          "zone_id",
+          "requested_at",
+          "status",
+          "base_fare",
+          "multiplier",
+          "charged_fare",
+          "degraded"
+        ],
+        "title": "TripResponse"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

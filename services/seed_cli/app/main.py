@@ -2,29 +2,18 @@
 Script principal de ejecución CLI para el Seeding de Datos.
 Administra lotes, transacciones, argumentos de consola e inserción ordenada.
 """
-import sys
 import argparse
 import logging
 import time
-from typing import Any, Dict, List, Type
+from typing import Any
 
-from sqlalchemy import insert
+from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import (
+    insert as pg_insert,  # reemplaza "from sqlalchemy import insert"
+)
 from sqlalchemy.orm import Session
-from sqlalchemy.dialects.postgresql import insert as pg_insert  # reemplaza "from sqlalchemy import insert"
-from sqlalchemy import select, func
-from .models import Driver, Vehicle, Zone
 
 from .database import SessionLocal, clean_database, engine
-from .seeder import (
-    apply_driver_status,
-    generate_drivers,
-    generate_licenses,
-    generate_sanctions,
-    generate_vehicles,
-    generate_driver_vehicle_states,
-    generate_zones,
-    zones_gdf,
-)
 from .models import (
     Driver,
     License,
@@ -32,6 +21,17 @@ from .models import (
     Vehicle,
     VehicleState,
     Zone,
+)
+from .seeder import (
+    apply_driver_status,
+    generate_driver_vehicle_states,
+    generate_drivers,
+    generate_licenses,
+    generate_sanctions,
+    generate_vehicles,
+    generate_zones,
+    init_seeds,
+    zones_gdf,
 )
 
 # Configuración de Logging
@@ -43,7 +43,7 @@ logger = logging.getLogger("DataSeeder")
 logger.info(f"engine.url: {engine.url}")
 
 
-def bulk_insert_in_chunks(session: Session, model_cls: Type, data: List[Dict[str, Any]], chunk_size: int = 5000):
+def bulk_insert_in_chunks(session: Session, model_cls: type, data: list[dict[str, Any]], chunk_size: int = 5000):
     """
     Inserta en lotes ignorando filas que ya existen (misma PK/UNIQUE).
     Así el seed es idempotente: ejecutarlo dos veces no duplica ni falla.
@@ -62,9 +62,11 @@ def bulk_insert_in_chunks(session: Session, model_cls: Type, data: List[Dict[str
     session.flush()
 
 
-def run_seeder(drivers_count: int, clean_first: bool):
+def run_seeder(drivers_count: int, clean_first: bool, target_vehicles: int | None = None):
     start_time = time.time()
     logger.info("Iniciando proceso de Seeding de Datos...")
+
+    init_seeds()
 
     if clean_first:
         clean_database()
@@ -84,6 +86,7 @@ def run_seeder(drivers_count: int, clean_first: bool):
             driver_ids,
             min_vehicles_per_driver=1,
             max_vehicles_per_driver=2,
+            target_vehicles=target_vehicles,
         )
         vehicle_states_data = generate_driver_vehicle_states(
             [
@@ -107,7 +110,7 @@ def run_seeder(drivers_count: int, clean_first: bool):
         session.commit()
         elapsed_time = round(time.time() - start_time, 2)
         logger.info(f"¡Seeding completado con éxito en {elapsed_time} segundos!")
-        for model in (Zone, Driver, Vehicle):
+        for model in (Zone, Driver, Vehicle, VehicleState):
             n = session.execute(select(func.count()).select_from(model)).scalar()
             logger.info(f"{model.__tablename__}: {n} filas")
 
@@ -120,13 +123,28 @@ def run_seeder(drivers_count: int, clean_first: bool):
 
 
 if __name__ == "__main__":
+    import os
+
+    env_drivers = int(os.getenv("SEED_DRIVERS", "8000"))
+    env_vehicles_raw = os.getenv("SEED_VEHICLES")
+    env_vehicles = int(env_vehicles_raw) if env_vehicles_raw else None
+    env_clean = os.getenv("SEED_CLEAN", "false").lower() in ("true", "1", "yes")
+
     parser = argparse.ArgumentParser(description="Script de Poblamiento de Datos (Seeder) para Fleet & Dynamic Pricing")
-    parser.add_argument("--clean", action="store_true", help="Limpia (TRUNCATE) las tablas antes de poblar.")
-    parser.add_argument("--drivers", type=int, default=100, help="Cantidad de conductores a generar (default: 100).")
+    parser.add_argument("--clean", action="store_true", default=env_clean, help="Limpia (TRUNCATE) las tablas antes de poblar.")
+    parser.add_argument("--drivers", type=int, default=env_drivers, help=f"Cantidad de conductores a generar (default: {env_drivers}).")
+    parser.add_argument("--vehicles", type=int, default=env_vehicles, help="Cantidad exacta de vehículos a generar (default: igual a conductores si es 8000).")
+    parser.add_argument("--modo", type=str, default="completo", help="Modo de ejecución (para compatibilidad con Dockerfile).")
 
     args = parser.parse_args()
 
+    # Si se solicitan 8000 conductores y no se especifica --vehicles, se alinean 1 a 1 a 8000 vehículos (F4 y F6)
+    target_v = args.vehicles
+    if target_v is None and args.drivers == 8000:
+        target_v = 8000
+
     run_seeder(
         drivers_count=args.drivers,
-        clean_first=args.clean
+        clean_first=args.clean,
+        target_vehicles=target_v,
     )

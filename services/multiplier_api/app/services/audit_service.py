@@ -1,17 +1,14 @@
 # app/services/audit_service.py
 import uuid
-from typing import Optional
 
-from sqlalchemy.orm import Session
-
-from app.models.zone_state import ZoneState
 from app.repositories import fare_audit_repo
 from app.schemas.audit import FareAuditResponse
+from sqlalchemy.orm import Session
 
 
 def reconstruct_fare_audit(
     db: Session, trip_id: uuid.UUID
-) -> Optional[FareAuditResponse]:
+) -> FareAuditResponse | None:
     """
     Reconstruye matemáticamente cómo se calculó la tarifa de cualquier viaje (RF-04, CA-05).
     Lee los valores históricos persistidos en fare_audit de forma inmutable.

@@ -5,23 +5,20 @@ Representa exactamente la estructura del esquema relacional.
 
 import uuid
 from datetime import date, datetime
-from typing import Any, Dict
+from typing import Any
 
 from sqlalchemy import (
+    JSON,
     Boolean,
-    Column,
     Date,
     DateTime,
     Float,
     ForeignKey,
-    ForeignKeyConstraint,
     Integer,
-    JSON,
     String,
-    Table,
 )
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
 class Base(DeclarativeBase):
@@ -118,7 +115,7 @@ class TariffRuleVersion(Base):
     rule_version_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     valid_from: Mapped[date] = mapped_column(Date, nullable=False)
     valid_to: Mapped[date] = mapped_column(Date, nullable=False)
-    rules: Mapped[Dict[str, Any]] = mapped_column(JSON, nullable=False)
+    rules: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
 
 
 class FareAudit(Base):

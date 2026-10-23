@@ -9,12 +9,12 @@ if str(_app_dir) not in sys.path:
 import asyncio
 import logging
 import signal
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from worker_config import settings
 from consumer import TelemetryConsumer
 from database import get_db_session
 from pressure_calculator import compute_zone_metrics
+from worker_config import settings
 
 logging.basicConfig(
     level=logging.INFO,
@@ -28,7 +28,7 @@ async def periodic_pressure_recalc(stop_event: asyncio.Event):
     logger.info("Iniciando tarea periódica de cálculo de presión (intervalo: %ds)...", settings.calculation_interval_seconds)
     while not stop_event.is_set():
         try:
-            now_utc = datetime.now(timezone.utc)
+            now_utc = datetime.now(UTC)
             with get_db_session() as session:
                 compute_zone_metrics(session, now_utc)
         except Exception:
@@ -36,7 +36,7 @@ async def periodic_pressure_recalc(stop_event: asyncio.Event):
 
         try:
             await asyncio.wait_for(stop_event.wait(), timeout=settings.calculation_interval_seconds)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             pass
 
 

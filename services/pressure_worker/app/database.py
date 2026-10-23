@@ -1,8 +1,8 @@
 # services/pressure_worker/app/database.py
 from contextlib import contextmanager
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
-
 from worker_config import settings
 
 engine = create_engine(

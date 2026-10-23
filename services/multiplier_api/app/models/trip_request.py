@@ -2,11 +2,10 @@
 import uuid
 from datetime import datetime
 
+from app.core.database import Base
 from sqlalchemy import DateTime, ForeignKey, Integer, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
-from app.core.database import Base
 
 
 class TripRequest(Base):
@@ -19,4 +18,4 @@ class TripRequest(Base):
     requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     status: Mapped[str] = mapped_column(Text, nullable=False, default="created")
 
-    audit: Mapped["FareAudit"] = relationship("FareAudit", back_populates="trip", uselist=False)
+    audit: Mapped["FareAudit"] = relationship("FareAudit", back_populates="trip", uselist=False)  # noqa: F821

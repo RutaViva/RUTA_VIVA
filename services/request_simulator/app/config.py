@@ -1,6 +1,6 @@
 # services/request_simulator/app/config.py
-import os
 from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _parents = Path(__file__).resolve().parents
@@ -13,12 +13,12 @@ class Settings(BaseSettings):
     min_zone_id: int = 1
     max_zone_id: int = 265
 
-    # Parámetros de simulación
-    requests_per_second: float = 10.0
+    # Parámetros de simulación (F5: >= 30 solicitudes/segundo pico)
+    requests_per_second: float = 30.0
     concurrency_limit: int = 50
 
-    # Ráfagas (burst mode) para simulación de conciertos/eventos
-    burst_enabled: bool = False
+    # Ráfagas (burst mode) para simulación de conciertos/eventos (CA-10)
+    burst_enabled: bool = True
     burst_requests_count: int = 1000
     burst_interval_seconds: int = 180
     burst_target_zone: int = 161  # Midtown Center / Madison Square Garden

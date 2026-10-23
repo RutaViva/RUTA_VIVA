@@ -6,12 +6,13 @@ import os
 import random
 import uuid
 from datetime import date, datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any
+
+import geopandas as gpd
+import numpy as np
 import pandas as pd
 from faker import Faker
-import geopandas as gpd
 from shapely.geometry import Point
-import numpy as np
 
 # Hay que tener una variable de entorno que defina la seed
 SEED = os.getenv("SEED")
@@ -31,17 +32,20 @@ GEOJSON_PATH = os.path.join(DATA_DIR, "geojson", "sync_taxi_zones.geojson")
 df = pd.read_csv(CSV_PATH)
 zone_ids = df["LocationID"].tolist()
 
-# Determinamos si hay o no una seed.
-if SEED is not None:
-    SEED = int(SEED)
-# Valor default para reproducibilidad de resultados.
-elif SEED is None:
-    SEED = 1230821048148
-    NP_SEED = 45
+def init_seeds(custom_seed: int | None = None, custom_np_seed: int | None = None):
+    global SEED, NP_SEED
+    env_s = os.getenv("SEED")
+    env_np = os.getenv("NP_SEED")
+    s = custom_seed if custom_seed is not None else (int(env_s) if env_s is not None else 1230821048148)
+    np_s = custom_np_seed if custom_np_seed is not None else (int(env_np) if env_np is not None else 45)
+    SEED = s
+    NP_SEED = np_s
+    random.seed(s)
+    Faker.seed(s)
+    np.random.seed(np_s)
 
-random.seed(SEED)
-Faker.seed(SEED)
-np.random.seed(NP_SEED)
+
+init_seeds()
 
 # Coordenadas aproximadas del área metropolitana de Nueva York
 LAT_MIN, LAT_MAX = 40.4900, 40.9200
@@ -56,7 +60,7 @@ def uuid_from_random() -> uuid.UUID:
     return uuid.UUID(int=random.getrandbits(128))
 
 
-def generate_zones() -> List[Dict[str, Any]]:
+def generate_zones() -> list[dict[str, Any]]:
     return [
         {
             "zone_id": int(row["LocationID"]),
@@ -67,30 +71,43 @@ def generate_zones() -> List[Dict[str, Any]]:
     ]
 
 
-def generate_drivers(count: int) -> List[Dict[str, Any]]:
+def generate_drivers(count: int) -> list[dict[str, Any]]:
     return [
         {
             "driver_id": uuid_from_random(),
             "full_name": fake.name(),
         }
-        
+
         for _ in range(count)
-    ] 
+    ]
 
 
 def generate_vehicles(
-    driver_ids: List[uuid.UUID],
-    min_vehicles_per_driver: int = 0,
+    driver_ids: list[uuid.UUID],
+    min_vehicles_per_driver: int = 1,
     max_vehicles_per_driver: int = 2,
-) -> List[Dict[str, Any]]:
+    target_vehicles: int | None = None,
+) -> list[dict[str, Any]]:
     """
     Genera vehículos asignando entre min y max vehículos a cada conductor (Relación 1 a N).
+    Si target_vehicles está especificado, garantiza exactamente esa cantidad total de vehículos.
     """
     vehicles = []
     used_plates = set()
+    n_drivers = len(driver_ids)
+    if n_drivers == 0:
+        return []
 
-    for d_id in driver_ids:
-        num_vehicles = random.randint(min_vehicles_per_driver, max_vehicles_per_driver)
+    if target_vehicles is not None:
+        base_count = target_vehicles // n_drivers
+        remainder = target_vehicles % n_drivers
+        counts = [base_count] * n_drivers
+        for i in range(remainder):
+            counts[i] += 1
+    else:
+        counts = [random.randint(min_vehicles_per_driver, max_vehicles_per_driver) for _ in driver_ids]
+
+    for d_id, num_vehicles in zip(driver_ids, counts):
         for _ in range(num_vehicles):
             # Generar placa única.
             while True:
@@ -107,7 +124,7 @@ def generate_vehicles(
     return vehicles
 
 
-def generate_licenses(driver_ids: List[uuid.UUID]) -> List[Dict[str, Any]]:
+def generate_licenses(driver_ids: list[uuid.UUID]) -> list[dict[str, Any]]:
     today = date.today()
     licenses = []
     for d_id in driver_ids:
@@ -132,10 +149,10 @@ def generate_licenses(driver_ids: List[uuid.UUID]) -> List[Dict[str, Any]]:
 
 
 def generate_sanctions(
-    driver_ids: List[uuid.UUID],
+    driver_ids: list[uuid.UUID],
     probability: float = 0.2,
-    max_sanctions: Optional[int] = None,
-) -> List[Dict[str, Any]]:
+    max_sanctions: int | None = None,
+) -> list[dict[str, Any]]:
     if not 0 <= probability <= 1:
         raise ValueError("probability debe estar entre 0 y 1.")
     if max_sanctions is not None and max_sanctions < 0:
@@ -191,12 +208,12 @@ def compute_driver_status(driver_id, licenses_by_driver, sanctions_by_driver) ->
     return "active"              # ← antes: "ACTIVE"
 
 def apply_driver_status(
-    drivers: List[Dict[str, Any]],
-    licenses: List[Dict[str, Any]],
-    sanctions: List[Dict[str, Any]],
-) -> List[Dict[str, Any]]:
-    licenses_by_driver: Dict[uuid.UUID, List[Dict[str, Any]]] = {}
-    sanctions_by_driver: Dict[uuid.UUID, List[Dict[str, Any]]] = {}
+    drivers: list[dict[str, Any]],
+    licenses: list[dict[str, Any]],
+    sanctions: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    licenses_by_driver: dict[uuid.UUID, list[dict[str, Any]]] = {}
+    sanctions_by_driver: dict[uuid.UUID, list[dict[str, Any]]] = {}
 
     for license_data in licenses:
         licenses_by_driver.setdefault(license_data["driver_id"], []).append(license_data)
@@ -222,26 +239,27 @@ zones_gdf.to_file(GEOJSON_PATH, driver="GeoJSON")
 if zones_gdf.crs != "EPSG:4326":
     zones_gdf = zones_gdf.to_crs(epsg=4326)
 
-def generate_coordinates_and_random_zone(zones_gdf):
-    # 1. Seleccionar una zona aleatoria del dataset
-    zona = zones_gdf.sample(1).iloc[0]
-    poligono = zona['geometry']
-    
-    # 2. Obtenemos el bounding box exacto de ESA zona (no de todo NYC)
-    min_lon, min_lat, max_lon, max_lat = poligono.bounds
-    
-    # 3. Generamos puntos dentro de ese recuadro pequeño hasta acertar en el polígono
+zones_cache = [
+    (int(row["LocationID"]), str(row["zone"]), row["geometry"], row["geometry"].bounds)
+    for _, row in zones_gdf.iterrows()
+]
+
+def generate_coordinates_and_random_zone(zones_gdf=None):
+    # 1. Seleccionar una zona aleatoria del dataset en memoria O(1)
+    loc_id, zone_name, poligono, (min_lon, min_lat, max_lon, max_lat) = random.choice(zones_cache)
+
+    # 2. Generamos puntos dentro del bounding box hasta acertar en el polígono
     while True:
         lat = round(random.uniform(min_lat, max_lat), 6)
         lon = round(random.uniform(min_lon, max_lon), 6)
-        
+
         if poligono.contains(Point(lon, lat)):
-            return lat, lon, zona['LocationID'], zona['zone']
+            return lat, lon, loc_id, zone_name
 
 
 def generate_vehicle_states(
-    vehicle_ids: List[uuid.UUID],
-) -> List[Dict[str, Any]]:
+    vehicle_ids: list[uuid.UUID],
+) -> list[dict[str, Any]]:
     states = []
     today_midnight = datetime.combine(date.today(), datetime.min.time())
 
@@ -259,8 +277,8 @@ def generate_vehicle_states(
     return states
 
 
-import random
-from datetime import datetime, timezone
+from datetime import UTC
+
 
 def generate_driver_vehicle_states(driver_vehicle_pairs, zones_gdf):
     """
@@ -280,47 +298,47 @@ def generate_driver_vehicle_states(driver_vehicle_pairs, zones_gdf):
     for driver_id, vehicles in driver_vehicles.items():
         # Mezclar la lista para que el vehículo activo sea aleatorio
         random.shuffle(vehicles)
-        
+
         # El PRIMER vehículo del conductor será el ACTIVO
         active_vehicle_id = vehicles[0]
         lat, lon, zone_id, _ = generate_coordinates_and_random_zone(zones_gdf)
-        
+
         vehicle_states.append({
             "vehicle_id": active_vehicle_id,
             "zone_id": zone_id,
             "latitude": lat,
             "longitude": lon,
             "status": random.choice(["available", "busy"]), # Solo el activo está Available/Busy
-            "last_seen_at": datetime.now(timezone.utc)
+            "last_seen_at": datetime.now(UTC)
         })
 
         # Los demás vehículos del mismo conductor serán INACTIVOS (Offline o Mantenimiento)
         for inactive_vehicle_id in vehicles[1:]:
             # También se les genera o asigna su última ubicación conocida (ej. base o taller)
             inact_lat, inact_lon, inact_zone_id, _ = generate_coordinates_and_random_zone(zones_gdf)
-            
+
             vehicle_states.append({
                 "vehicle_id": inactive_vehicle_id,
                 "zone_id": inact_zone_id,
                 "latitude": inact_lat,
                 "longitude": inact_lon,
                 "status": random.choice(["offline", "maintenance"]), # Nunca AVAILABLE/BUSY
-                "last_seen_at": datetime.now(timezone.utc)
+                "last_seen_at": datetime.now(UTC)
             })
 
     return vehicle_states
 
 
 def validate_consistency(
-    drivers: List[Dict[str, Any]],
-    licenses: List[Dict[str, Any]],
-    sanctions: List[Dict[str, Any]],
-    vehicles: List[Dict[str, Any]],
-    vehicle_states: List[Dict[str, Any]],
+    drivers: list[dict[str, Any]],
+    licenses: list[dict[str, Any]],
+    sanctions: list[dict[str, Any]],
+    vehicles: list[dict[str, Any]],
+    vehicle_states: list[dict[str, Any]],
 ) -> None:
     #Traer los ids de conductores, sanciones, licencias y estados de vehiculos para validacion
-    licenses_by_driver: Dict[uuid.UUID, List[Dict[str, Any]]] = {}
-    sanctions_by_driver: Dict[uuid.UUID, List[Dict[str, Any]]] = {}
+    licenses_by_driver: dict[uuid.UUID, list[dict[str, Any]]] = {}
+    sanctions_by_driver: dict[uuid.UUID, list[dict[str, Any]]] = {}
     drivers_by_id = {driver["driver_id"]: driver for driver in drivers}
     states_by_vehicle_id = {
         state["vehicle_id"]: state for state in vehicle_states
@@ -333,7 +351,7 @@ def validate_consistency(
 
     #Validar coherencia del conductor
     for driver in drivers:
-        #Revizamos que tenga licencia 
+        #Revizamos que tenga licencia
         if not licenses_by_driver.get(driver["driver_id"]):
             raise AssertionError(
                 f"Driver {driver['driver_id']}: no tiene una licencia asociada."
@@ -352,7 +370,7 @@ def validate_consistency(
             )
 
     #Validar existencia de relaciones y validez de estados de vehículos
-    active_vehicles_by_driver: Dict[Any, int] = {}
+    active_vehicles_by_driver: dict[Any, int] = {}
     for vehicle in vehicles:
         vehicle_id = vehicle["vehicle_id"]
         driver_id = vehicle["driver_id"]
@@ -361,7 +379,7 @@ def validate_consistency(
             raise AssertionError(
                 f"Vehículo {vehicle_id}: driver_id {driver_id} no existe."
             )
-         
+
         if vehicle_id not in states_by_vehicle_id:
             raise AssertionError(f"Vehículo {vehicle_id}: no tiene estado asociado.")
 

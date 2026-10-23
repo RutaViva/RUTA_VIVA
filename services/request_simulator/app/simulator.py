@@ -3,10 +3,8 @@ import asyncio
 import logging
 import random
 import time
-from typing import Optional
 
 import httpx
-
 from config import settings
 
 logger = logging.getLogger(__name__)
@@ -17,7 +15,7 @@ class RequestSimulator:
         self.api_url = settings.api_url.rstrip("/")
         self.trip_endpoint = f"{self.api_url}/trip-requests"
         self.semaphore = asyncio.Semaphore(settings.concurrency_limit)
-        self.client: Optional[httpx.AsyncClient] = None
+        self.client: httpx.AsyncClient | None = None
         self.total_sent = 0
         self.total_success = 0
         self.total_failed = 0
@@ -37,7 +35,7 @@ class RequestSimulator:
         fare = random.gauss(14.5, 5.0)
         return round(max(5.0, min(95.0, fare)), 2)
 
-    async def send_single_request(self, zone_id: Optional[int] = None) -> bool:
+    async def send_single_request(self, zone_id: int | None = None) -> bool:
         """Envía una solicitud de viaje individual hacia la API."""
         if zone_id is None:
             # Concentrar mayor peso en zonas de alta demanda (Manhattan central y aeropuertos)
@@ -118,5 +116,5 @@ class RequestSimulator:
 
             try:
                 await asyncio.wait_for(stop_event.wait(), timeout=interval)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 pass

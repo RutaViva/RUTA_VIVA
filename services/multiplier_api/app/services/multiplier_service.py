@@ -1,13 +1,12 @@
 # app/services/multiplier_service.py
 import logging
-from datetime import datetime, timezone
-
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
+from datetime import UTC, datetime
 
 from app.core.config import settings
 from app.repositories import zone_state_repo
 from app.schemas.multiplier import MultiplierResponse
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
@@ -36,10 +35,10 @@ def get_current_multiplier(db: Session, zone_id: int) -> MultiplierResponse | No
         return None
 
     # Normalización segura de zonas horarias para evitar TypeError en sustracción
-    now_utc = datetime.now(timezone.utc)
+    now_utc = datetime.now(UTC)
     computed_at = state.computed_at
     if computed_at is not None and computed_at.tzinfo is None:
-        computed_at = computed_at.replace(tzinfo=timezone.utc)
+        computed_at = computed_at.replace(tzinfo=UTC)
 
     if computed_at is None:
         return _degraded(zone_id, None)

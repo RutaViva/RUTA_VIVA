@@ -9,6 +9,7 @@ services:
       - "5438:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
+      - ./infra/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U admin -d rutaviva_db"]
       interval: 5s
@@ -69,10 +70,28 @@ services:
     environment:
       - DATABASE_URL=postgresql+psycopg://admin:admin1234@db:5432/rutaviva_db
       - RABBITMQ_URL=amqp://admin:admin1234@rabbitmq:5672/
+      - BATCH_SIZE=1000
     depends_on:
       db:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+    networks:
+      - rutaviva_network
+
+  seed_runner:
+    build:
+      context: ./services/seed_cli
+      dockerfile: Dockerfile
+    container_name: rutaviva_seed_runner
+    restart: "no"
+    environment:
+      - DATABASE_URL=postgresql+psycopg://admin:admin1234@db:5432/rutaviva_db
+      - SEED_DRIVERS=8000
+      - SEED_VEHICLES=8000
+      - SEED_CLEAN=true
+    depends_on:
+      db:
         condition: service_healthy
     networks:
       - rutaviva_network
@@ -96,6 +115,8 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      seed_runner:
+        condition: service_completed_successfully
     networks:
       - rutaviva_network
 
@@ -107,7 +128,11 @@ services:
     restart: unless-stopped
     environment:
       - API_URL=http://multiplier_api:8000
-      - REQUESTS_PER_SECOND=8.0
+      - REQUESTS_PER_SECOND=30.0
+      - BURST_ENABLED=true
+      - BURST_REQUESTS_COUNT=1000
+      - BURST_INTERVAL_SECONDS=180
+      - BURST_TARGET_ZONE=161
     depends_on:
       - multiplier_api
     networks:

@@ -1,27 +1,25 @@
 # services/pressure_worker/app/pressure_calculator.py
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import Dict, Any, List
 
-from sqlalchemy import select, func, and_, or_, text
-from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy.orm import Session
-
-from worker_config import settings
 from models import (
-    Zone,
     Driver,
-    Vehicle,
     License,
     Sanction,
+    SpecialEvent,
+    TripRequest,
+    Vehicle,
     VehicleState,
+    WeatherCurrent,
+    Zone,
     ZoneState,
     ZoneStateHistory,
-    TripRequest,
-    WeatherCurrent,
-    SpecialEvent,
 )
+from sqlalchemy import and_, func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.orm import Session
+from worker_config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +69,41 @@ def apply_regulatory_caps(multiplier: float, current_time_utc: datetime) -> floa
     return round(capped, 2)
 
 
+def get_available_supply_query(today, cutoff_telemetry):
+    """
+    Construye la consulta de oferta disponible aplicando RN-09 y RN-10:
+    - Estado de vehículo 'available'
+    - Telemetría fresca (last_seen_at >= cutoff_telemetry, RN-10)
+    - Conductor no suspendido (Driver.status != 'suspended', RN-09, CA-06)
+    - Licencia vigente (License.expires_on >= today, RN-09)
+    - Sin sanción activa hoy (Sanction.sanction_id IS NULL, RN-09)
+    """
+    return (
+        select(VehicleState.zone_id, VehicleState.vehicle_id, Driver.driver_id)
+        .join(Vehicle, VehicleState.vehicle_id == Vehicle.vehicle_id)
+        .join(Driver, Vehicle.driver_id == Driver.driver_id)
+        .join(License, Driver.driver_id == License.driver_id)
+        .outerjoin(
+            Sanction,
+            and_(
+                Driver.driver_id == Sanction.driver_id,
+                Sanction.starts_on <= today,
+                Sanction.ends_on >= today,
+            ),
+        )
+        .where(
+            and_(
+                VehicleState.status == "available",
+                VehicleState.last_seen_at >= cutoff_telemetry,
+                VehicleState.zone_id.isnot(None),
+                Driver.status != "suspended",
+                License.expires_on >= today,
+                Sanction.sanction_id.is_(None),
+            )
+        )
+    )
+
+
 def compute_zone_metrics(session: Session, now_utc: datetime) -> None:
     """
     Calcula la oferta, demanda y multiplicadores para todas las zonas
@@ -102,31 +135,10 @@ def compute_zone_metrics(session: Session, now_utc: datetime) -> None:
     )
 
     # 3. Contar vehículos libres válidos por zona (RN-09, RN-10)
-    # Excluye conductores suspendidos, licencias vencidas y sanciones vigentes
+    supply_subq = get_available_supply_query(today, cutoff_telemetry).subquery()
     free_vehicles_query = (
-        select(VehicleState.zone_id, func.count(VehicleState.vehicle_id).label("free_count"))
-        .join(Vehicle, VehicleState.vehicle_id == Vehicle.vehicle_id)
-        .join(Driver, Vehicle.driver_id == Driver.driver_id)
-        .join(License, Driver.driver_id == License.driver_id)
-        .outerjoin(
-            Sanction,
-            and_(
-                Driver.driver_id == Sanction.driver_id,
-                Sanction.starts_on <= today,
-                Sanction.ends_on >= today,
-            ),
-        )
-        .where(
-            and_(
-                VehicleState.status == "available",
-                VehicleState.last_seen_at >= cutoff_telemetry,  # RN-10
-                VehicleState.zone_id.isnot(None),
-                Driver.status != "suspended",                  # RN-09, CA-06
-                License.expires_on >= today,                   # RN-09
-                Sanction.sanction_id.is_(None),                # RN-09
-            )
-        )
-        .group_by(VehicleState.zone_id)
+        select(supply_subq.c.zone_id, func.count(supply_subq.c.vehicle_id).label("free_count"))
+        .group_by(supply_subq.c.zone_id)
     )
     free_counts = dict(session.execute(free_vehicles_query).all())
 
