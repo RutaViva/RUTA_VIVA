@@ -1,0 +1,13 @@
+aws_region         = "us-east-1"
+project_name       = "ruta-viva"
+environment        = "prod-opt"
+db_name            = "rutaviva_db"
+db_username        = "admin"
+db_password        = "RutaViva2026SecurePass!"
+db_instance_class  = "db.t4g.medium"
+
+# Para gastar 0 créditos de cómputo Fargate mientras no estés probando:
+desired_tasks_api       = 2 # pon 0 para apagar
+desired_tasks_worker    = 1 # pon 0 para apagar
+desired_tasks_telemetry = 1 # pon 0 para apagar
+desired_tasks_rabbitmq  = 1 # pon 0 para apagar
