@@ -10,7 +10,14 @@ if str(_service_dir) not in sys.path:
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import health, multiplier, zone, trip_request, audit
+from app.routers import (
+    audit,
+    health,
+    multiplier,
+    service_complaint,
+    trip_request,
+    zone,
+)
 
 app = FastAPI(
     title="RutaViva Multiplier & Mobility API",
@@ -30,4 +37,5 @@ app.include_router(health.router)
 app.include_router(zone.router)
 app.include_router(multiplier.router)
 app.include_router(trip_request.router)
+app.include_router(service_complaint.router)
 app.include_router(audit.router)

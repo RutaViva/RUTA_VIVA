@@ -20,6 +20,9 @@ seeder_error.log
 # Entorno de desarrollo
 .git/
 .gitignore
+.env
+.env.*
+!.env.example
 .vscode/
 .idea/
 

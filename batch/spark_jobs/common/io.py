@@ -1,5 +1,3 @@
-"""Small shared helpers for Spark input and output paths."""
-
 from __future__ import annotations
 
 import os
@@ -35,6 +33,31 @@ def read_source(spark: SparkSession, path: str, format_env: str) -> DataFrame:
     raise ValueError(f"{format_env} debe ser csv, json o parquet; se recibió {source_format!r}.")
 
 
+def list_source_files(spark: SparkSession, path: str) -> list[str]:
+    hadoop_path = spark.sparkContext._jvm.org.apache.hadoop.fs.Path(path)
+    filesystem = hadoop_path.getFileSystem(spark.sparkContext._jsc.hadoopConfiguration())
+    if not filesystem.exists(hadoop_path):
+        raise FileNotFoundError(f"No existe la ruta de entrada: {path}")
+
+    status = filesystem.getFileStatus(hadoop_path)
+    if status.isFile():
+        return [hadoop_path.toString()]
+
+    files = filesystem.listFiles(hadoop_path, True)
+    paths = []
+    while files.hasNext():
+        file_path = files.next().getPath()
+        if not file_path.getName().startswith((".", "_")):
+            paths.append(file_path.toString())
+    return sorted(paths)
+
+
+def path_exists(spark: SparkSession, path: str) -> bool:
+    hadoop_path = spark.sparkContext._jvm.org.apache.hadoop.fs.Path(path)
+    filesystem = hadoop_path.getFileSystem(spark.sparkContext._jsc.hadoopConfiguration())
+    return filesystem.exists(hadoop_path)
+
+
 def write_parquet(
     df: DataFrame, path: str, partition_by: Sequence[str] = ()
 ) -> None:
@@ -42,3 +65,31 @@ def write_parquet(
     if partition_by:
         writer = writer.partitionBy(*partition_by)
     writer.parquet(path)
+
+
+def replace_partition(
+    spark: SparkSession,
+    df: DataFrame,
+    path: str,
+    partition_by: Sequence[str],
+    values: Sequence[object],
+) -> None:
+    if not partition_by or len(partition_by) != len(values):
+        raise ValueError("Partition columns and values must have the same nonzero length.")
+    is_empty = df.rdd.isEmpty()
+
+    partition_path = path.rstrip("/")
+    for column, value in zip(partition_by, values):
+        if value is None:
+            raise ValueError("Partition values cannot be null.")
+        partition_path = join_path(partition_path, f"{column}={value}")
+
+    hadoop_path = spark.sparkContext._jvm.org.apache.hadoop.fs.Path(partition_path)
+    filesystem = hadoop_path.getFileSystem(
+        spark.sparkContext._jsc.hadoopConfiguration()
+    )
+    if filesystem.exists(hadoop_path) and not filesystem.delete(hadoop_path, True):
+        raise OSError(f"No se pudo reemplazar la partición {partition_path}")
+
+    if not is_empty:
+        df.write.mode("append").partitionBy(*partition_by).parquet(path)

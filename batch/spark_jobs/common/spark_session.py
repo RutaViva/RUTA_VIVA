@@ -15,6 +15,10 @@ def create_spark_session(app_name: str) -> SparkSession:
             "spark.sql.session.timeZone",
             os.environ.get("SPARK_TIMEZONE", "America/New_York"),
         )
+        .config(
+            "spark.pyspark.python",
+            os.environ.get("SPARK_EXECUTOR_PYTHON", "python3"),
+        )
         .config("spark.sql.ansi.enabled", "false")
     )
 
@@ -39,7 +43,9 @@ def create_spark_session(app_name: str) -> SparkSession:
         "S3_GOLD_PATH",
         "S3_WEATHER_PATH",
         "S3_EVENTS_PATH",
+        "S3_TRIP_REQUESTS_PATH",
         "S3_ZONE_STATE_HISTORY_PATH",
+        "S3_SERVICE_COMPLAINTS_PATH",
     )
     uses_s3a = any(
         os.environ.get(name, "").strip().startswith("s3a://") for name in paths

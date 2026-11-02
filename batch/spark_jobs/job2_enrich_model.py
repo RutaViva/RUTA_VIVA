@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import os
 import sys
 from pathlib import Path
@@ -12,7 +13,14 @@ from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.types import IntegerType, StringType, StructField, StructType
 
-from common.io import join_path, read_source, required_env, write_parquet
+from common.io import (
+    join_path,
+    path_exists,
+    read_source,
+    replace_partition,
+    required_env,
+    write_parquet,
+)
 from common.spark_session import create_spark_session
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -209,27 +217,27 @@ def _trip_fact(
 ) -> DataFrame:
     _require_columns(
         trips,
-        (
-            "tpep_pickup_datetime",
-            "tpep_dropoff_datetime",
-            "pickup_latitude",
-            "pickup_longitude",
-            "dropoff_latitude",
-            "dropoff_longitude",
-            "fare_amount",
-            "total_amount",
-        ),
+        ("tpep_pickup_datetime", "tpep_dropoff_datetime", "fare_amount", "total_amount"),
         "Silver",
     )
+
+    def zone_key(zone_id: str, latitude: str, longitude: str):
+        zone = (
+            F.col(zone_id).cast("int")
+            if zone_id in trips.columns
+            else F.lit(None).cast("int")
+        )
+        if latitude in trips.columns and longitude in trips.columns:
+            return F.coalesce(zone, locate_zone(latitude, longitude))
+        if zone_id not in trips.columns:
+            raise ValueError(f"Silver requiere {zone_id} o coordenadas {latitude}/{longitude}.")
+        return zone
+
     base = trips.select(
         F.col("tpep_pickup_datetime").cast("timestamp"),
         F.col("tpep_dropoff_datetime").cast("timestamp"),
-        locate_zone("pickup_latitude", "pickup_longitude").alias(
-            "pickup_zone_key"
-        ),
-        locate_zone("dropoff_latitude", "dropoff_longitude").alias(
-            "dropoff_zone_key"
-        ),
+        zone_key("pickup_zone_id", "pickup_latitude", "pickup_longitude").alias("pickup_zone_key"),
+        zone_key("dropoff_zone_id", "dropoff_latitude", "dropoff_longitude").alias("dropoff_zone_key"),
         F.col("fare_amount").cast("double").alias("base_fare"),
         F.col("total_amount").cast("double").alias("fare_amount"),
     ).withColumn(
@@ -344,22 +352,180 @@ def _zone_interval_fact(
     )
 
 
-def _write_table(df: DataFrame, gold_path: str, table_name: str) -> None:
-    write_parquet(
-        df,
-        join_path(gold_path, table_name),
-        ("year", "month") if {"year", "month"}.issubset(df.columns) else (),
+def _rn11_monthly_report(
+    trip_requests: DataFrame,
+    intervals: DataFrame,
+    complaints: DataFrame,
+    zones: DataFrame,
+    year: int,
+    month: int,
+) -> DataFrame:
+    _require_columns(
+        trip_requests,
+        ("zone_id", "requested_at", "charged_fare", "multiplier"),
+        "TRIP_REQUEST/FARE_AUDIT",
+    )
+    _require_columns(
+        intervals,
+        ("zone_id", "interval_start", "estimated_wait_minutes"),
+        "ZONE_STATE_HISTORY",
+    )
+    _require_columns(
+        complaints,
+        ("zone_id", "created_at"),
+        "SERVICE_COMPLAINT",
+    )
+    _require_columns(zones, ("zone_key", "borough"), "DIM_ZONE")
+
+    zone_boroughs = zones.select(
+        F.col("zone_key").cast("int").alias("zone_id"), "borough"
+    )
+    requests = trip_requests.select(
+        F.col("zone_id").cast("int").alias("zone_id"),
+        F.col("requested_at").cast("timestamp").alias("requested_at"),
+        F.col("charged_fare").cast("double").alias("charged_fare"),
+        F.col("multiplier").cast("double").alias("multiplier"),
+    ).filter(
+        (F.year("requested_at") == year) & (F.month("requested_at") == month)
+    )
+    request_metrics = (
+        requests.join(zone_boroughs, "zone_id", "inner")
+        .groupBy("borough")
+        .agg(
+            F.count(F.lit(1)).cast("long").alias("trip_count"),
+            F.avg("charged_fare").alias("average_fare"),
+            F.count("multiplier").alias("audited_trip_count"),
+            F.sum(
+                F.when(F.col("multiplier") > 1, 1).otherwise(0)
+            ).alias("surge_trip_count"),
+        )
+        .withColumn(
+            "multiplier_gt_one_pct",
+            F.when(
+                F.col("audited_trip_count") > 0,
+                F.col("surge_trip_count") * F.lit(100.0)
+                / F.col("audited_trip_count"),
+            ).otherwise(F.lit(None).cast("double")),
+        )
+        .select(
+            "borough",
+            "trip_count",
+            "average_fare",
+            "multiplier_gt_one_pct",
+        )
+    )
+
+    wait_metrics = (
+        intervals.select(
+            F.col("zone_id").cast("int").alias("zone_id"),
+            F.col("interval_start").cast("timestamp").alias("interval_start"),
+            F.col("estimated_wait_minutes")
+            .cast("double")
+            .alias("estimated_wait_minutes"),
+        )
+        .filter(
+            (F.year("interval_start") == year)
+            & (F.month("interval_start") == month)
+        )
+        .join(zone_boroughs, "zone_id", "inner")
+        .groupBy("borough")
+        .agg(F.avg("estimated_wait_minutes").alias("average_wait_minutes"))
+    )
+
+    complaint_metrics = (
+        complaints.select(
+            F.col("zone_id").cast("int").alias("zone_id"),
+            F.col("created_at").cast("timestamp").alias("created_at"),
+        )
+        .filter(
+            (F.year("created_at") == year) & (F.month("created_at") == month)
+        )
+        .join(zone_boroughs, "zone_id", "inner")
+        .groupBy("borough")
+        .agg(F.count(F.lit(1)).cast("long").alias("complaint_count"))
+    )
+
+    return (
+        zones.select("borough")
+        .distinct()
+        .join(request_metrics, "borough", "left")
+        .join(wait_metrics, "borough", "left")
+        .join(complaint_metrics, "borough", "left")
+        .withColumn("year", F.lit(year).cast("int"))
+        .withColumn("month", F.lit(month).cast("int"))
+        .withColumn(
+            "trip_count",
+            F.coalesce(F.col("trip_count"), F.lit(0)).cast("long"),
+        )
+        .withColumn(
+            "complaint_count",
+            F.coalesce(F.col("complaint_count"), F.lit(0)).cast("long"),
+        )
+        .select(
+            "borough",
+            "trip_count",
+            "average_fare",
+            "average_wait_minutes",
+            "multiplier_gt_one_pct",
+            "complaint_count",
+            "year",
+            "month",
+        )
+    )
+
+
+def _write_table(
+    spark: SparkSession,
+    df: DataFrame,
+    gold_path: str,
+    table_name: str,
+    year: int,
+    month: int,
+) -> None:
+    path = join_path(gold_path, table_name)
+    if {"year", "month"}.issubset(df.columns):
+        replace_partition(spark, df, path, ("year", "month"), (year, month))
+    else:
+        write_parquet(df, path)
+
+
+def _read_monthly_silver(
+    spark: SparkSession,
+    silver_path: str,
+    quarantine_path: str,
+    year: int,
+    month: int,
+) -> DataFrame:
+    if path_exists(spark, silver_path):
+        source = spark.read.parquet(silver_path)
+    else:
+        quarantine = spark.read.parquet(quarantine_path)
+        source = quarantine.drop("reject_reason").limit(0)
+    return source.filter(
+        (F.col("pickup_year") == year) & (F.col("pickup_month") == month)
     )
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--year", type=int, required=True)
+    parser.add_argument("--month", type=int, choices=range(1, 13), required=True)
+    args = parser.parse_args()
+
     bronze_path = required_env("S3_BRONZE_PATH")
     silver_path = required_env("S3_SILVER_PATH")
+    quarantine_path = required_env("S3_QUARANTINE_PATH")
     gold_path = required_env("S3_GOLD_PATH")
     weather_path = os.environ.get("S3_WEATHER_PATH") or join_path(bronze_path, "f3")
     events_path = os.environ.get("S3_EVENTS_PATH") or join_path(bronze_path, "f7")
     history_path = os.environ.get("S3_ZONE_STATE_HISTORY_PATH") or join_path(
         bronze_path, "zone_state_history"
+    )
+    trip_requests_path = os.environ.get("S3_TRIP_REQUESTS_PATH") or join_path(
+        bronze_path, "operational/trip_requests"
+    )
+    complaints_path = os.environ.get("S3_SERVICE_COMPLAINTS_PATH") or join_path(
+        bronze_path, "operational/service_complaints"
     )
     shapefile_path = os.environ.get(
         "RUTAVIVA_ZONE_SHAPEFILE_PATH",
@@ -388,33 +554,77 @@ def main() -> None:
 
     spark = create_spark_session("RutaViva-job2-enrich-model")
     try:
-        trips = spark.read.parquet(silver_path)
+        trips = _read_monthly_silver(
+            spark, silver_path, quarantine_path, args.year, args.month
+        )
         weather = _weather_dimension(read_source(spark, weather_path, "F3_FORMAT"))
         events = _event_intervals(read_source(spark, events_path, "F7_FORMAT"))
         intervals = _zone_intervals(
             read_source(spark, history_path, "ZONE_STATE_HISTORY_FORMAT")
+        ).filter(
+            (F.year("interval_start") == args.year)
+            & (F.month("interval_start") == args.month)
+        )
+        trip_requests = read_source(
+            spark, trip_requests_path, "TRIP_REQUESTS_FORMAT"
+        )
+        complaints = read_source(
+            spark, complaints_path, "SERVICE_COMPLAINTS_FORMAT"
         )
         zones_gdf = load_zones_gdf(shapefile_path)
         zone_catalog = load_zone_catalog(catalog_path)
         locate_zone = _zone_lookup_udf(spark, zones_gdf)
+        zone_dimension = _zone_dimension(spark, zones_gdf, zone_catalog)
 
-        _write_table(_date_dimension(trips, intervals), gold_path, "DIM_DATE")
-        _write_table(_time_slot_dimension(spark), gold_path, "DIM_TIME_SLOT")
-        _write_table(weather, gold_path, "DIM_WEATHER")
         _write_table(
-            _zone_dimension(spark, zones_gdf, zone_catalog),
-            gold_path,
-            "DIM_ZONE",
+            spark, _date_dimension(trips, intervals), gold_path, "DIM_DATE",
+            args.year, args.month
         )
         _write_table(
+            spark, _time_slot_dimension(spark), gold_path, "DIM_TIME_SLOT",
+            args.year, args.month
+        )
+        _write_table(
+            spark, weather, gold_path, "DIM_WEATHER", args.year, args.month
+        )
+        _write_table(
+            spark,
+            zone_dimension,
+            gold_path,
+            "DIM_ZONE",
+            args.year,
+            args.month,
+        )
+        _write_table(
+            spark,
             _trip_fact(trips, weather, events, locate_zone),
             gold_path,
             "FACT_TRIP",
+            args.year,
+            args.month,
         )
         _write_table(
+            spark,
             _zone_interval_fact(intervals, weather),
             gold_path,
             "FACT_ZONE_INTERVAL",
+            args.year,
+            args.month,
+        )
+        _write_table(
+            spark,
+            _rn11_monthly_report(
+                trip_requests,
+                intervals,
+                complaints,
+                zone_dimension,
+                args.year,
+                args.month,
+            ),
+            gold_path,
+            "RN11_MONTHLY_REPORT",
+            args.year,
+            args.month,
         )
     finally:
         spark.stop()
