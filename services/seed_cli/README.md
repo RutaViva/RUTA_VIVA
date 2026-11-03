@@ -8,7 +8,7 @@ Herramienta de línea de comandos (CLI) encargada del poblamiento determinista, 
 
 El `seed_cli` genera la base de datos inicial sin intervención manual ni volcados arbitrarios (*dumps*), cumpliendo los requisitos de la sección 5.2 del proyecto:
 1. **Catálogo Espacial Oficial (Fuente F2)**: Carga las 265 zonas oficiales de la NYC Taxi & Limousine Commission (TLC) desde polígonos GeoJSON / Shapefiles, mapeando `borough` y `zone_name`.
-2. **Flota y Conductores Sintéticos (Fuente F6)**: Genera 8,000 conductores con nombres realistas, números de licencia y vehículos afiliados con placas únicas.
+2. **Flota y Conductores Sintéticos (Fuente F6)**: Genera 8,000 conductores por defecto con nombres realistas, números de licencia y entre uno y dos vehículos afiliados por conductor, con placas únicas.
 3. **Modelado de Estado Legal (Regla RN-09)**:
    - Asigna de manera estocástica pero determinista licencias vigentes y vencidas.
    - Aplica sanciones disciplinarias activas con fechas de inicio y término.
@@ -21,7 +21,7 @@ El `seed_cli` genera la base de datos inicial sin intervención manual ni volcad
 
 - **Semilla Fija y Reproducibilidad**: Utiliza `SEED=42` y `NP_SEED=42` con `Faker` y `numpy.random`, garantizando que dos ejecuciones generen exactamente la misma flota.
 - **Idempotencia Estricta**: Inserciones mediante `pg_insert(Model).on_conflict_do_nothing()`. Ejecutar el comando múltiples veces no duplica filas ni produce errores de clave duplicada (**Criterio CT-06**).
-- **Parámetros de Volumen**: Soporta `--modo dev` (500 vehículos para pruebas rápidas) y `--modo completo` (8,000 vehículos para simulación de producción).
+- **Parámetros de Volumen**: `--modo completo` genera 8,000 conductores por defecto y asigna aleatoriamente entre uno y dos vehículos a cada conductor. `--drivers` permite ajustar la cantidad de conductores y `--vehicles` establecer opcionalmente una cantidad exacta de vehículos.
 
 ---
 
@@ -32,10 +32,7 @@ El `seed_cli` genera la base de datos inicial sin intervención manual ni volcad
 ```bash
 cd services/seed_cli
 
-# Ejecución en modo desarrollo (ligero)
-python -m app.main --modo dev
-
-# Ejecución en modo producción (completo, 8,000 vehículos)
+# Ejecución completa (8,000 conductores y de 1 a 2 vehículos por conductor)
 python -m app.main --modo completo
 ```
 

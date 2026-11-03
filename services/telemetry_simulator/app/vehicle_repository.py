@@ -16,7 +16,7 @@ def cargar_estados_iniciales() -> list[EstadoInicialVehiculo]:
     """Carga desde PostgreSQL los vehículos y su último estado sembrado."""
     engine = create_engine(
         DATABASE_URL,
-        pool_pre_ping=True,
+        pool_pre_ping=True, # Comprueba que la conexión siga viva antes de usarla
         connect_args={"connect_timeout": 5},
     )
     try:

@@ -3,9 +3,14 @@ from app.core.config import settings
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
-# pool_pre_ping verifica la conexión antes de usarla,
-# así una conexión muerta no rompe la primera petición.
-engine = create_engine(settings.database_url, pool_pre_ping=True)
+engine = create_engine(
+    settings.database_url,
+    pool_size=10,
+    max_overflow=20,
+    pool_timeout=60, # Segundos a esperar antes de lanzar TimeoutError
+    pool_recycle=1800, # Recicla conexiones tras 30 min (evita caídas por inactividad)
+    pool_pre_ping=True, # Comprueba que la conexión siga viva antes de usarla
+)
 SessionLocal = sessionmaker(bind=engine, autoflush=False)
 
 

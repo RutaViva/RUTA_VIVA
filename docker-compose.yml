@@ -201,7 +201,6 @@ services:
     environment:
       - DATABASE_URL=postgresql+psycopg://admin:admin1234@db:5432/rutaviva_db
       - SEED_DRIVERS=${SEED_DRIVERS:-8000}
-      - SEED_VEHICLES=${SEED_VEHICLES:-8000}
       - SEED_CLEAN=${SEED_CLEAN:-false}
     depends_on:
       db_migrate:
@@ -333,18 +332,6 @@ services:
       - .:/opt/spark/work-dir
     networks:
       - rutaviva_network
-
-  jupyter:
-    image: quay.io/jupyter/pyspark-notebook:spark-4.2.0
-    container_name: jupyter-pyspark
-    ports:
-      - "8888:8888"
-    volumes:
-      - .:/home/jovyan/work
-    networks:
-      - rutaviva_network
-    environment:
-      - JUPYTER_ENABLE_LAB=yes
 
   airflow-db:
     image: postgres:16

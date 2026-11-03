@@ -15,7 +15,7 @@ COPY --from=java /opt/java/openjdk /opt/java/openjdk
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl \
-    && curl --fail --location --silent --show-error \
+    && curl --fail --location --progress-bar --show-error \
         "https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-${SPARK_HADOOP_PROFILE}.tgz" \
         --output /tmp/spark.tgz \
     && tar -xzf /tmp/spark.tgz --directory /opt \

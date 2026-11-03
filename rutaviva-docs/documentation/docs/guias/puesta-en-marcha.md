@@ -35,12 +35,15 @@ Instrucciones para levantar el entorno de desarrollo local de RutaViva.
 
    Compose aplica automáticamente las migraciones (`db_migrate`) y carga datos
    iniciales (`seed_runner`) antes de los servicios que los necesitan. El seed
-   usa 8000 conductores/vehículos por defecto; puedes definir
-   `SEED_DRIVERS` y `SEED_VEHICLES` en `.env` para ajustar el tamaño en una
-   prueba. El seed no borra datos existentes por defecto; no ejecutes
+   usa 8000 conductores por defecto y genera de 1 a 2 vehículos por conductor.
+   Puedes ajustar la cantidad de conductores mediante `SEED_DRIVERS` en `.env`.
+   El seed no borra datos existentes por defecto; no ejecutes
    `docker compose down -v` salvo que quieras eliminar los volúmenes y sus
    datos. El simulador de solicitudes espera a que el healthcheck de la API
    responda correctamente.
+   La API y `pressure_worker` limitan sus pools SQLAlchemy para reservar
+   conexiones de PostgreSQL para los demás servicios; si escalas o replicas
+   esos contenedores, ten en cuenta que el límite del pool se aplica por proceso.
 3. Comprueba los servicios y sus logs cuando alguno no aparezca como
    `healthy`/`running`:
 

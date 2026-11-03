@@ -75,7 +75,7 @@ generación del reporte falla en lugar de publicar un archivo vacío.
 | `docker-compose.yml` | `seed_runner` espera a `db_migrate`; `SEED_CLEAN` toma `false` por defecto. Los servicios operacionales y Airflow esperan las tareas de migración, seed y permisos según corresponda. | Hacer que el arranque respete el orden de inicialización y evitar borrar datos cada vez que se inicia Compose. |
 | `docker-compose.yml` | Se pasan variables AWS/S3 a Spark master y worker. | Asegurar que tanto el driver como los ejecutores tengan la configuración de acceso al almacenamiento. |
 | `docker-compose.yml` | Los servicios Airflow comparten el volumen de reportes y dependen de la inicialización de bases, seed y usuario de solo lectura. | Evitar que el DAG empiece antes de tener el entorno operacional listo. |
-| `docker-compose.yml` | Se agregó un healthcheck HTTP para `multiplier_api`; `request_simulator` espera a que la API esté saludable. Los tamaños de seed ahora se pueden ajustar con `SEED_DRIVERS` y `SEED_VEHICLES` (por defecto, 8000). | Evitar errores de conexión durante el arranque y permitir pruebas locales con un tamaño de datos controlado. |
+| `docker-compose.yml` | Se agregó un healthcheck HTTP para `multiplier_api`; `request_simulator` espera a que la API esté saludable. El seed genera 8000 conductores por defecto y de 1 a 2 vehículos por conductor; `SEED_DRIVERS` permite ajustar la cantidad de conductores. | Evitar errores de conexión durante el arranque y permitir pruebas locales con un tamaño de datos controlado. |
 
 `docker compose build` construye imágenes; el servicio `db_migrate` y el
 `seed_runner` se ejecutan al levantar los servicios con `docker compose up`.

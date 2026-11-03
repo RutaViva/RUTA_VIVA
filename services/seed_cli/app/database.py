@@ -15,7 +15,14 @@ DATABASE_URL = os.getenv(
     "postgresql+psycopg://admin:admin1234@localhost:5438/rutaviva_db"
 )
 
-engine = create_engine(DATABASE_URL, echo=False, pool_size=20, max_overflow=10)
+engine = create_engine(
+    DATABASE_URL,
+    echo=False,
+    pool_size=10,
+    max_overflow=20,
+    pool_timeout=60, # Segundos a esperar antes de lanzar TimeoutError
+    pool_pre_ping=True, # Comprueba que la conexión siga viva antes de usarla
+)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 def clean_database():

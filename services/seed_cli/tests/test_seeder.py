@@ -33,6 +33,20 @@ def test_generate_driver_vehicle_states_activa_un_solo_auto_por_conductor(monkey
     assert all("driver_id" not in state for state in states)
 
 
+def test_generate_vehicles_defaults_to_one_or_two_per_driver():
+    seeder.init_seeds()
+    driver_ids = [uuid4() for _ in range(100)]
+
+    vehicles = seeder.generate_vehicles(driver_ids)
+    vehicle_counts = defaultdict(int)
+    for vehicle in vehicles:
+        vehicle_counts[vehicle["driver_id"]] += 1
+
+    assert set(vehicle_counts) == set(driver_ids)
+    assert all(count in (1, 2) for count in vehicle_counts.values())
+    assert set(vehicle_counts.values()) == {1, 2}
+
+
 def test_seeder_idempotency_ca22():
     """
     HU-02 / CA 2.2:
@@ -84,4 +98,3 @@ def test_seeder_idempotency_ca22():
     assert licenses_count_1 == licenses_count_2, "Las licencias no deben duplicarse"
     assert sanctions_count_1 == sanctions_count_2, "Las sanciones no deben duplicarse"
     assert states_count_1 == states_count_2, "Los estados no deben duplicarse"
-
