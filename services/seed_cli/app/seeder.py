@@ -6,7 +6,7 @@ import os
 import random
 import uuid
 from datetime import date, datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any
 from faker import Faker
 from shapely.geometry import Point
 import numpy as np
@@ -106,7 +106,7 @@ def generate_vehicles(
         counts = [random.randint(min_vehicles_per_driver, max_vehicles_per_driver) for _ in driver_ids]
 
     for d_id, num_vehicles in zip(driver_ids, counts):
-        for _ in range(num_vehicles): 
+        for _ in range(num_vehicles):
             # Generar placa única.
             while True:
                 plate = f"{fake.bothify(text='???').upper()}-{fake.bothify(text='####')}"

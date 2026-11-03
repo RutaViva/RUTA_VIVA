@@ -23,3 +23,8 @@ node_modules/
 *.tfvars
 !*.tfvars.example
 tfplan
+
+# Data Lake / Datos locales
+batch/data/local/
+*.parquet
+*.crc

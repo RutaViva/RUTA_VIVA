@@ -12,12 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import (
-    audit,
-    health,
-    multiplier,
     service_complaint,
-    trip_request,
-    zone,
 )
 
 app = FastAPI(
