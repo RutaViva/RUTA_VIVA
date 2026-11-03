@@ -1,8 +1,8 @@
-from pathlib import Path
 
 import os
 
-import pandas as pd, geopandas as gpd
+import geopandas as gpd
+import pandas as pd
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "seed_cli", "app", "data")

@@ -154,6 +154,9 @@ class OperationalBronzeExtractTests(unittest.TestCase):
                         "S3_ZONE_STATE_HISTORY_PATH": (
                             "s3a://rutaviva-lake/bronze/zone_state_history"
                         ),
+                        "S3_SERVICE_COMPLAINTS_PATH": (
+                            "s3a://rutaviva-lake/bronze/operational/service_complaints"
+                        ),
                     },
                 ),
             ):

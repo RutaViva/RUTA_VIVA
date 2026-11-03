@@ -1,15 +1,14 @@
 import random
-from typing import List
 
 from services.telemetry_simulator.app.config import (
-    LAT_MIN,
     LAT_MAX,
-    LON_MIN,
+    LAT_MIN,
     LON_MAX,
+    LON_MIN,
 )
 from services.telemetry_simulator.app.defects import (
-    plan_defects,
     out_of_city_position,
+    plan_defects,
 )
 from services.telemetry_simulator.app.vehicle import Vehiculo
 

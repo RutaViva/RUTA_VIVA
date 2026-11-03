@@ -1,11 +1,8 @@
 # app/services/trip_request_service.py
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Optional
-
-from sqlalchemy.orm import Session
 
 from app.models.fare_audit import FareAudit
 from app.models.tariff_rule_version import TariffRuleVersion
@@ -15,13 +12,14 @@ from app.models.zone_state import ZoneState
 from app.repositories import trip_request_repo, zone_repo
 from app.schemas.trip_request import TripResponse
 from app.services import multiplier_service
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
 
 def create_trip_request(
     db: Session, zone_id: int, base_fare: float
-) -> Optional[TripResponse]:
+) -> TripResponse | None:
     """
     Registra una solicitud de viaje y congela atómicamente la tarifa
     con el multiplicador vigente al momento de la solicitud (RN-07, RN-12).
@@ -38,7 +36,7 @@ def create_trip_request(
     if zone is None:
         return None
 
-    now_utc = datetime.now(timezone.utc)
+    now_utc = datetime.now(UTC)
 
     # 2. Obtener multiplicador vigente y estado (con degradación segura RNF-04)
     mult_resp = multiplier_service.get_current_multiplier(db, zone_id)
@@ -130,5 +128,5 @@ def create_trip_request(
 
 def update_trip_status(
     db: Session, trip_id: uuid.UUID, new_status: str
-) -> Optional[TripRequest]:
+) -> TripRequest | None:
     return trip_request_repo.update_status(db, trip_id, new_status)

@@ -25,7 +25,7 @@ def _get_config_values() -> tuple[Path, str, str, str]:
     return landing_dir, bucket, prefix, bronze_uri
 
 
-def _make_s3_client() -> Any:
+def make_s3_client() -> Any:
     from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
     from botocore.config import Config
 
@@ -40,7 +40,7 @@ def _make_s3_client() -> Any:
         client_type="s3",
         region_name=region,
     )
-    
+
     return hook.get_session().client(
         "s3",
         endpoint_url=endpoint,
@@ -57,7 +57,7 @@ def ingest_bronze() -> None:
     if not files:
         raise FileNotFoundError(f"No se encontraron archivos en: {landing_dir}")
 
-    s3 = _make_s3_client()
+    s3 = make_s3_client()
 
     for path in files:
         relative_path = path.relative_to(landing_dir).as_posix()

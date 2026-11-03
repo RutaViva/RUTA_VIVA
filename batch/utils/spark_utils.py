@@ -35,6 +35,11 @@ SPARK_CONFIG_ENV_VARS = (
     "HADOOP_AWS_VERSION",
     "SPARK_TIMEZONE",
     "SPARK_EXECUTOR_PYTHON",
+    "RUTAVIVA_ZONE_SHAPEFILE_PATH",
+    "RUTAVIVA_ZONE_CATALOG_PATH",
+    "AWS_ACCESS_KEY_ID",
+    "AWS_SECRET_ACCESS_KEY",
+    "AWS_SESSION_TOKEN",
 )
 
 
@@ -59,17 +64,19 @@ def spark_environment() -> dict[str, str]:
 
 def submit_spark_job(
     *,
-    script_name: str,
-    spark_jobs_dir: Path,
+    script_path: Path,
     conn_id: str = "spark_default",
     application_args: Sequence[str] | None = None,
 ) -> None:
     from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
 
+    if not script_path.is_file():
+        raise FileNotFoundError(f"No existe la aplicación Spark: {script_path}")
+
     hook = SparkSubmitHook(
         conn_id=conn_id,
         env_vars=spark_environment(),
-        name=f"rutaviva-{Path(script_name).stem.replace('_', '-')}",
+        name=f"rutaviva-{script_path.stem.replace('_', '-')}",
         application_args=list(application_args or ()),
     )
-    hook.submit(str(spark_jobs_dir / script_name))
+    hook.submit(str(script_path))

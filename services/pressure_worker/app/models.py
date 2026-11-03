@@ -1,8 +1,9 @@
 # services/pressure_worker/app/models.py
 import uuid
 from datetime import date, datetime
-from typing import Any, Dict
+from typing import Any
 
+from database import Base
 from sqlalchemy import (
     Boolean,
     Date,
@@ -11,13 +12,10 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     Numeric,
-    String,
     Text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-
-from database import Base
+from sqlalchemy.orm import Mapped, mapped_column
 
 
 class Zone(Base):
@@ -100,7 +98,7 @@ class TariffRuleVersion(Base):
     rule_version_id: Mapped[int] = mapped_column(Integer, primary_key=True)
     valid_from: Mapped[date] = mapped_column(Date, nullable=False)
     valid_to: Mapped[date | None] = mapped_column(Date, nullable=True)
-    rules: Mapped[Dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    rules: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
 
 
 class WeatherCurrent(Base):

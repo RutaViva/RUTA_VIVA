@@ -1,0 +1,137 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+    "name": "RutaViva Mobility API",
+    "description": "Colección completa de endpoints para RutaViva Mobility: Cotización de tarifas dinámicas, registro y cancelación de solicitudes, asignación y auditoría inmutable.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "auditor_key",
+      "value": "auditor-secret-token",
+      "type": "string"
+    },
+    {
+      "key": "trip_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01. Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": ["{{base_url}}"],
+          "path": ["health"]
+        },
+        "description": "Comprueba el estado operativo del microservicio multiplier_api."
+      }
+    },
+    {
+      "name": "02. Consultar Multiplicador de Zona (RN-03, RN-04, RN-05)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/zones/161/multiplier",
+          "host": ["{{base_url}}"],
+          "path": ["zones", "161", "multiplier"]
+        },
+        "description": "Consulta el multiplicador dinámico actual para una zona (1-265) de NYC TLC."
+      }
+    },
+    {
+      "name": "03. Crear Solicitud de Viaje (HU-01 / RN-07)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var jsonData = pm.response.json();",
+              "if (jsonData.trip_id) {",
+              "    pm.collectionVariables.set('trip_id', jsonData.trip_id);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"zone_id\": 161,\n  \"base_fare\": 25.50\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/trip-requests",
+          "host": ["{{base_url}}"],
+          "path": ["trip-requests"]
+        },
+        "description": "Crea una solicitud de viaje, congela atómicamente el multiplicador y registra la traza de auditoría."
+      }
+    },
+    {
+      "name": "04. Cancelar Solicitud de Viaje (HU-01 / CA 1.2)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/trip-requests/{{trip_id}}/cancel",
+          "host": ["{{base_url}}"],
+          "path": ["trip-requests", "{{trip_id}}", "cancel"]
+        },
+        "description": "Marca la solicitud como cancelada sin eliminar el registro de base de datos."
+      }
+    },
+    {
+      "name": "05. Asignar Vehículo a Solicitud",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/trip-requests/{{trip_id}}/assign",
+          "host": ["{{base_url}}"],
+          "path": ["trip-requests", "{{trip_id}}", "assign"]
+        },
+        "description": "Simula la asignación y aceptación del servicio por parte de un conductor."
+      }
+    },
+    {
+      "name": "06. Reconstrucción y Auditoría Tarifaria (CA-05 / RNF-06)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-Auditor-Role",
+            "value": "auditor"
+          },
+          {
+            "key": "X-Auditor-Key",
+            "value": "{{auditor_key}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/audit/{{trip_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["audit", "{{trip_id}}"]
+        },
+        "description": "Reconstruye de forma inmutable la tarifa cobrada, multiplicador, presión, clima y versión de regla utilizada."
+      }
+    }
+  ]
+}

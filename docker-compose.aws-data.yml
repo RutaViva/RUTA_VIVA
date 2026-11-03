@@ -1,0 +1,229 @@
+x-airflow-common: &airflow-common
+  image: rutaviva-airflow:3.3.2
+  build:
+    context: .
+    dockerfile: batch/airflow/Dockerfile
+  restart: unless-stopped
+  environment: &airflow-environment
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+    AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/project/batch/dags
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY:?Set AIRFLOW_FERNET_KEY}
+    AIRFLOW__CORE__PARALLELISM: "2"
+    AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG: "1"
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:${AIRFLOW_META_PASSWORD:?Set AIRFLOW_META_PASSWORD}@airflow-db:5432/airflow
+    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-api-server:8080/execution/
+    AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW_API_JWT_SECRET:?Set AIRFLOW_API_JWT_SECRET}
+    AIRFLOW__API__SECRET_KEY: ${AIRFLOW_API_SECRET_KEY:?Set AIRFLOW_API_SECRET_KEY}
+    AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: "true"
+    AIRFLOW_CONN_POSTGRES_DEFAULT: postgresql+psycopg2://${AIRFLOW_POSTGRES_USER:?Set AIRFLOW_POSTGRES_USER}:${AIRFLOW_POSTGRES_PASSWORD:?Set AIRFLOW_POSTGRES_PASSWORD}@${RDS_HOST:?Set RDS_HOST}:5432/${POSTGRES_DB:-rutaviva_db}?sslmode=require
+    AIRFLOW_CONN_SPARK_DEFAULT: spark://spark-master:7077?deploy-mode=client
+    AIRFLOW_CONN_AWS_DEFAULT: aws://?region_name=${AWS_REGION:-us-east-1}
+    AIRFLOW_POSTGRES_CONN_ID: postgres_default
+    AIRFLOW_AWS_CONN_ID: aws_default
+    AIRFLOW_TIMEZONE: ${AIRFLOW_TIMEZONE:-America/New_York}
+    BRONZE_LANDING_DIR: /opt/airflow/data/landing
+    PYTHONPATH: /opt/airflow/project:/opt/airflow/project/batch/spark_jobs
+    S3_BRONZE_PATH: ${S3_BRONZE_PATH:?Set S3_BRONZE_PATH}
+    S3_SILVER_PATH: ${S3_SILVER_PATH:?Set S3_SILVER_PATH}
+    S3_GOLD_PATH: ${S3_GOLD_PATH:?Set S3_GOLD_PATH}
+    S3_QUARANTINE_PATH: ${S3_QUARANTINE_PATH:?Set S3_QUARANTINE_PATH}
+    S3_F1_PATH: ${S3_F1_PATH:-}
+    S3_WEATHER_PATH: ${S3_WEATHER_PATH:-}
+    S3_EVENTS_PATH: ${S3_EVENTS_PATH:-}
+    S3_TRIP_REQUESTS_PATH: ${S3_TRIP_REQUESTS_PATH:-}
+    S3_SERVICE_COMPLAINTS_PATH: ${S3_SERVICE_COMPLAINTS_PATH:-}
+    S3_ZONE_STATE_HISTORY_PATH: ${S3_ZONE_STATE_HISTORY_PATH:-}
+    F1_FORMAT: ${F1_FORMAT:-csv}
+    F3_FORMAT: ${F3_FORMAT:-csv}
+    F7_FORMAT: ${F7_FORMAT:-csv}
+    TRIP_REQUESTS_FORMAT: ${TRIP_REQUESTS_FORMAT:-csv}
+    SERVICE_COMPLAINTS_FORMAT: ${SERVICE_COMPLAINTS_FORMAT:-csv}
+    ZONE_STATE_HISTORY_FORMAT: ${ZONE_STATE_HISTORY_FORMAT:-csv}
+    AWS_REGION: ${AWS_REGION:-us-east-1}
+    AWS_DEFAULT_REGION: ${AWS_REGION:-us-east-1}
+    SPARK_TIMEZONE: ${SPARK_TIMEZONE:-America/New_York}
+    SPARK_JARS_PACKAGES: ${SPARK_JARS_PACKAGES:-}
+    HADOOP_AWS_VERSION: ${HADOOP_AWS_VERSION:-3.5.0}
+    SPARK_EXECUTOR_PYTHON: /opt/venv/bin/python
+    REGULATORY_REPORT_DIR: /opt/airflow/reports
+  volumes: &airflow-volumes
+    - ./batch:/opt/airflow/project/batch:ro
+    - ./batch/data/landing:/opt/airflow/data/landing
+    - airflow_reports:/opt/airflow/reports
+    - airflow_logs:/opt/airflow/logs
+  networks:
+    - rutaviva_data
+  user: "${AIRFLOW_UID:-50000}:0"
+  depends_on: &airflow-depends-on
+    airflow-db:
+      condition: service_healthy
+
+services:
+  airflow-db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: ${AIRFLOW_META_PASSWORD:?Set AIRFLOW_META_PASSWORD}
+      POSTGRES_DB: airflow
+    volumes:
+      - airflow_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow -d airflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    mem_limit: 512m
+    networks:
+      - rutaviva_data
+
+  airflow-db-setup:
+    profiles: ["bootstrap"]
+    image: postgres:16
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        : "$${RDS_MASTER_PASSWORD:?Set RDS_MASTER_PASSWORD with the bootstrap env file}"
+        export PGSSLMODE=require
+        until pg_isready -h "$$RDS_HOST" -U "$$RDS_MASTER_USER" -d "$$POSTGRES_DB"; do
+          sleep 2
+        done
+        PGPASSWORD="$$RDS_MASTER_PASSWORD" psql \
+          -h "$$RDS_HOST" \
+          -U "$$RDS_MASTER_USER" \
+          -d "$$POSTGRES_DB" \
+          -v ON_ERROR_STOP=1 \
+          -v reader_user="$$AIRFLOW_POSTGRES_USER" \
+          -v reader_password="$$AIRFLOW_POSTGRES_PASSWORD" \
+          -v db_name="$$POSTGRES_DB" \
+          -v owner_user="$$RDS_MASTER_USER" \
+          -f /scripts/create_readonly_user.sql
+    environment:
+      RDS_HOST: ${RDS_HOST:?Set RDS_HOST}
+      RDS_MASTER_USER: ${RDS_MASTER_USER:?Set RDS_MASTER_USER}
+      RDS_MASTER_PASSWORD: ${RDS_MASTER_PASSWORD:-}
+      POSTGRES_DB: ${POSTGRES_DB:-rutaviva_db}
+      AIRFLOW_POSTGRES_USER: ${AIRFLOW_POSTGRES_USER:?Set AIRFLOW_POSTGRES_USER}
+      AIRFLOW_POSTGRES_PASSWORD: ${AIRFLOW_POSTGRES_PASSWORD:?Set AIRFLOW_POSTGRES_PASSWORD}
+    volumes:
+      - ./infra/airflow/create_readonly_user.sql:/scripts/create_readonly_user.sql:ro
+    restart: "no"
+    networks:
+      - rutaviva_data
+
+  airflow-init:
+    <<: *airflow-common
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        mkdir -p /opt/airflow/logs
+        chown -R "${AIRFLOW_UID:-50000}:0" /opt/airflow/logs
+        exec /entrypoint airflow version
+    environment:
+      <<: *airflow-environment
+      _AIRFLOW_DB_MIGRATE: "true"
+      _AIRFLOW_WWW_USER_CREATE: "true"
+      _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_ADMIN_USERNAME:-airflow}
+      _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD:?Set AIRFLOW_ADMIN_PASSWORD}
+    user: "0:0"
+    depends_on:
+      <<: *airflow-depends-on
+    restart: "no"
+
+  airflow-api-server:
+    <<: *airflow-common
+    command: api-server
+    ports:
+      - "127.0.0.1:8081:8080"
+    depends_on:
+      <<: *airflow-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+    depends_on:
+      <<: *airflow-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-dag-processor:
+    <<: *airflow-common
+    command: dag-processor
+    depends_on:
+      <<: *airflow-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-triggerer:
+    <<: *airflow-common
+    command: triggerer
+    depends_on:
+      <<: *airflow-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+
+  spark-master:
+    image: rutaviva-spark:4.2.0
+    build:
+      context: .
+      dockerfile: batch/spark_jobs/Dockerfile
+    command:
+      - /opt/spark/bin/spark-class
+      - org.apache.spark.deploy.master.Master
+      - --host
+      - spark-master
+      - --port
+      - "7077"
+      - --webui-port
+      - "8080"
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./batch:/opt/airflow/project/batch:ro
+    environment:
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_DEFAULT_REGION: ${AWS_REGION:-us-east-1}
+      SPARK_DAEMON_MEMORY: 256m
+    networks:
+      - rutaviva_data
+    restart: unless-stopped
+
+  spark-worker-1:
+    image: rutaviva-spark:4.2.0
+    build:
+      context: .
+      dockerfile: batch/spark_jobs/Dockerfile
+    command:
+      - /opt/spark/bin/spark-class
+      - org.apache.spark.deploy.worker.Worker
+      - --webui-port
+      - "8081"
+      - spark://spark-master:7077
+    environment:
+      SPARK_WORKER_MEMORY: 1024m
+      SPARK_WORKER_CORES: 1
+      SPARK_DAEMON_MEMORY: 256m
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_DEFAULT_REGION: ${AWS_REGION:-us-east-1}
+    volumes:
+      - ./batch:/opt/airflow/project/batch:ro
+    depends_on:
+      - spark-master
+    networks:
+      - rutaviva_data
+    restart: unless-stopped
+
+volumes:
+  airflow_db_data:
+  airflow_reports:
+  airflow_logs:
+
+networks:
+  rutaviva_data:
+    driver: bridge

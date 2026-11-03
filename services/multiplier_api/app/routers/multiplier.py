@@ -1,10 +1,9 @@
 # app/routers/multiplier.py
-from fastapi import APIRouter, Depends, HTTPException, Path
-from sqlalchemy.orm import Session
-
 from app.core.database import get_db
 from app.schemas.multiplier import MultiplierResponse
 from app.services import multiplier_service
+from fastapi import APIRouter, Depends, HTTPException, Path
+from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/zones", tags=["multiplier"])
 

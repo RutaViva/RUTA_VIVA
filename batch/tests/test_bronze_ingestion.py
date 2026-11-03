@@ -77,7 +77,7 @@ class BronzeIngestionTests(unittest.TestCase):
                         "S3_BRONZE_PATH": "s3a://rutaviva-lake/bronze",
                     },
                 ),
-                patch("batch.scripts.bronze_ingestion._make_s3_client", return_value=s3),
+                patch("batch.scripts.bronze_ingestion.make_s3_client", return_value=s3),
             ):
                 ingest_bronze()
 

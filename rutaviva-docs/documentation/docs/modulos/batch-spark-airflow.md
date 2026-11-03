@@ -31,12 +31,27 @@ El módulo batch contiene los trabajos analíticos distribuidos (PySpark) y los 
 
 ## 2. DAGs de Apache Airflow (`batch/dags/`)
 
-* **`rutaviva_monthly_pipeline`**: Se ejecuta a las 03:00 (America/New_York) el día 2 de cada mes. Extrae desde PostgreSQL las solicitudes con su auditoría y los intervalos de `zone_state_history` del mes anterior, carga los archivos landing a Bronze, y ejecuta Spark Job 1 y Job 2. Job 2 publica las tablas Gold en Parquet y el agregado RN-11. El DAG no termina correctamente si algún paso falla.
+* **`rutaviva_monthly_pipeline`**: Se ejecuta a las 03:00 (America/New_York) el día 2 de cada mes. Comprueba las fuentes históricas y los insumos geográficos, extrae desde PostgreSQL las solicitudes con su auditoría, los intervalos de `zone_state_history` y las quejas del mes anterior, carga landing a Bronze, y ejecuta Spark Job 1 y Job 2. Job 2 publica las tablas Gold en Parquet y el agregado RN-11; después se generan JSON/CSV regulatorios y se publican en `S3_GOLD_PATH/reports/year=YYYY/month=MM/`. El DAG no termina correctamente si algún paso falla.
 * **DAG Horario de Clima**: Consulta la API de Open-Meteo y actualiza la tabla operacional `weather_current` para que el cálculo en vivo siempre tenga el dato de precipitación sin latencia de red externa.
 
-El landing debe estar montado en todos los workers de Airflow y contener subdirectorios `f1/`, `f3/`, `f7/`, `zone_state_history/`, `operational/trip_requests/` y `operational/service_complaints/`. La extracción operacional usa la conexión Airflow `AIRFLOW_POSTGRES_CONN_ID` (por defecto `postgres_default`), el provider `apache-airflow-providers-postgres` y permisos de solo lectura sobre `trip_request`, `fare_audit`, `zone_state_history` y `service_complaint`. Aplica la migración de quejas antes de habilitar el DAG. Configura `AIRFLOW_TIMEZONE` con la misma zona horaria del DAG. La ingesta conserva las rutas relativas en `S3_BRONZE_PATH` y omite objetos que ya existen. Configura `BRONZE_LANDING_DIR` y las rutas `S3_BRONZE_PATH`, `S3_SILVER_PATH`, `S3_QUARANTINE_PATH` y `S3_GOLD_PATH` en el entorno de Airflow y Spark. Los jobs Spark usan la conexión `spark_default`; la ingesta usa `AIRFLOW_AWS_CONN_ID` (por defecto `aws_default`) y puede apuntar a MinIO/LocalStack mediante `S3_ENDPOINT` y `S3_PATH_STYLE_ACCESS`.
+El directorio `BRONZE_LANDING_DIR` debe ser compartido entre los workers de
+Airflow. Las fuentes F1/F3/F7 pueden estar ya en ese landing o en sus rutas
+Bronze de S3; la tarea de readiness comprueba que estén disponibles antes de
+extraer los datos operacionales. La extracción usa
+`AIRFLOW_POSTGRES_CONN_ID` (por defecto `postgres_default`), el provider
+`apache-airflow-providers-postgres` y permisos de solo lectura sobre
+`trip_request`, `fare_audit`, `zone_state_history` y `service_complaint`.
+Configura `AIRFLOW_TIMEZONE` con la misma zona horaria del DAG. La ingesta
+conserva las rutas relativas en `S3_BRONZE_PATH` y omite objetos sin cambios.
+Los jobs Spark usan `spark_default`; la ingesta y publicación usan
+`AIRFLOW_AWS_CONN_ID` (por defecto `aws_default`) y pueden apuntar a
+MinIO/LocalStack mediante `S3_ENDPOINT` y `S3_PATH_STYLE_ACCESS`.
 
-La salida analítica es exclusivamente la Capa Gold en Parquet, consultable desde Athena o Power BI; no se generan reportes planos JSON.
+El resultado analítico incluye las tablas Gold en Parquet y dos archivos del
+reporte RN-11 (JSON y CSV por distrito), publicados bajo
+`S3_GOLD_PATH/reports/year=YYYY/month=MM/`.
+El registro detallado de decisiones, cambios por archivo y validaciones de la
+integración está en [Integración de los flujos mensuales de Airflow](../guias/integracion-flujos-airflow.md).
 
 ### Ejecución local de Airflow con Docker Compose
 
@@ -59,27 +74,34 @@ disponible en `http://localhost:8081` y Spark conserva su UI en el puerto 8080.
    `docker run --rm apache/airflow:3.3.2-python3.12 python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`.
    Las contraseñas de base de datos se recomiendan hexadecimales para evitar
    caracteres que deban escaparse en la URI de conexión.
-3. Aplica las migraciones de la aplicación y carga datos base en PostgreSQL
-   operacional antes de iniciar los simuladores:
+3. Las migraciones y la carga base están automatizadas en Compose. El servicio
+   `db_migrate` actualiza el esquema, y `seed_runner` carga datos iniciales sin
+   limpiar los existentes (`SEED_CLEAN=false` por defecto). Comprueba que
+   `DOCKER_DATABASE_URL` en `.env` apunta al host interno `db` y revisa el
+   resultado de los servicios de una sola ejecución:
 
    ```bash
-   uv run --locked alembic upgrade head
-   uv run --locked python -m services.seed_cli.app.main --drivers 150
+   docker compose config -q
+   docker compose up --build db_migrate seed_runner airflow-db-setup
+   docker compose ps -a
    ```
 
-   Esto incluye la migración de `service_complaint`; no arranques
-   `telemetry_simulator` ni el pipeline antes de que termine el seed.
-4. Inicializa las bases de datos y el usuario de solo lectura y arranca los
-   servicios:
+   El servicio `airflow-db-setup` configura de forma idempotente el usuario de
+   solo lectura después de aplicar las migraciones. No habilites el DAG antes
+   de que migren y terminen el seed.
+4. Construye y arranca los servicios:
 
    ```bash
-   docker compose up --build airflow-init
-   docker compose up --build -d spark-master spark-worker-1 airflow-api-server airflow-scheduler airflow-dag-processor airflow-worker airflow-triggerer
+   docker compose up --build -d
+   docker compose ps
    ```
 
-   El servicio `airflow-db-setup` configura de forma idempotente permisos de
-   lectura para las tablas operacionales consultadas por el DAG. Para detener
-   Airflow sin bajar el resto de la plataforma, ejecuta
+   `docker compose build` construye imágenes; `docker compose up` es quien
+   inicia servicios y ejecuta las tareas de migración/seed en el orden de sus
+   dependencias. Airflow queda en `http://localhost:8081` y Spark UI en
+   `http://localhost:8080`. En Airflow, despausa y dispara
+   `rutaviva_monthly_pipeline` para una primera ejecución controlada. Para
+   detener Airflow sin bajar el resto de la plataforma, ejecuta
    `docker compose stop airflow-api-server airflow-scheduler airflow-dag-processor airflow-worker airflow-triggerer`.
    No elimines el volumen `airflow_db_data`: contiene el metastore de Airflow.
 

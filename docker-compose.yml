@@ -55,10 +55,12 @@ x-airflow-common: &airflow-common
     SPARK_JARS_PACKAGES: ${SPARK_JARS_PACKAGES:-}
     HADOOP_AWS_VERSION: ${HADOOP_AWS_VERSION:-3.5.0}
     SPARK_EXECUTOR_PYTHON: /opt/venv/bin/python
+    REGULATORY_REPORT_DIR: /opt/airflow/reports
   volumes: &airflow-common-volumes
     - ./batch:/opt/airflow/project/batch:ro
     - ./services/seed_cli:/opt/airflow/project/services/seed_cli:ro
     - ./batch/data/landing:/opt/airflow/data/landing
+    - airflow_reports:/opt/airflow/reports
     - airflow_logs:/opt/airflow/logs
   networks:
     - rutaviva_network
@@ -68,6 +70,12 @@ x-airflow-common: &airflow-common
       condition: service_healthy
     airflow-redis:
       condition: service_healthy
+    db_migrate:
+      condition: service_completed_successfully
+    seed_runner:
+      condition: service_completed_successfully
+    airflow-db-setup:
+      condition: service_completed_successfully
 
 services:
   db:
@@ -80,6 +88,7 @@ services:
       - "5438:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
+      - ./infra/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U admin -d rutaviva_db"]
       interval: 5s
@@ -121,6 +130,16 @@ services:
     restart: unless-stopped
     ports:
       - "8000:8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     environment:
       - DATABASE_URL=postgresql+psycopg://admin:admin1234@db:5432/rutaviva_db
       - FRESHNESS_THRESHOLD_SECONDS=300
@@ -128,6 +147,10 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      db_migrate:
+        condition: service_completed_successfully
+      seed_runner:
+        condition: service_completed_successfully
     networks:
       - rutaviva_network
 
@@ -140,11 +163,49 @@ services:
     environment:
       - DATABASE_URL=postgresql+psycopg://admin:admin1234@db:5432/rutaviva_db
       - RABBITMQ_URL=amqp://admin:admin1234@rabbitmq:5672/
+      - BATCH_SIZE=1000
     depends_on:
       db:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+    networks:
+      - rutaviva_network
+
+  db_migrate:
+    image: rutaviva-seed:latest
+    build:
+      context: ./services/seed_cli
+      dockerfile: Dockerfile
+    container_name: rutaviva_db_migrate
+    command: ["alembic", "-c", "/app/alembic.ini", "upgrade", "head"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-rutaviva_db}
+    volumes:
+      - ./alembic.ini:/app/alembic.ini:ro
+      - ./infra/migrations:/app/infra/migrations:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - rutaviva_network
+    restart: "no"
+
+  seed_runner:
+    image: rutaviva-seed:latest
+    build:
+      context: ./services/seed_cli
+      dockerfile: Dockerfile
+    container_name: rutaviva_seed_runner
+    restart: "no"
+    environment:
+      - DATABASE_URL=postgresql+psycopg://admin:admin1234@db:5432/rutaviva_db
+      - SEED_DRIVERS=${SEED_DRIVERS:-8000}
+      - SEED_VEHICLES=${SEED_VEHICLES:-8000}
+      - SEED_CLEAN=${SEED_CLEAN:-false}
+    depends_on:
+      db_migrate:
+        condition: service_completed_successfully
     networks:
       - rutaviva_network
 
@@ -167,6 +228,8 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      seed_runner:
+        condition: service_completed_successfully
     networks:
       - rutaviva_network
 
@@ -178,9 +241,16 @@ services:
     restart: unless-stopped
     environment:
       - API_URL=http://multiplier_api:8000
-      - REQUESTS_PER_SECOND=8.0
+      - REQUESTS_PER_SECOND=30.0
+      - BURST_ENABLED=true
+      - BURST_REQUESTS_COUNT=1000
+      - BURST_INTERVAL_SECONDS=180
+      - BURST_TARGET_ZONE=161
     depends_on:
-      - multiplier_api
+      multiplier_api:
+        condition: service_healthy
+      seed_runner:
+        condition: service_completed_successfully
     networks:
       - rutaviva_network
 
@@ -195,6 +265,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      db_migrate:
+        condition: service_completed_successfully
     networks:
       - rutaviva_network
       
@@ -221,6 +293,13 @@ services:
     environment:
       PYSPARK_PYTHON: /opt/venv/bin/python
       PYSPARK_DRIVER_PYTHON: /opt/venv/bin/python
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_DEFAULT_REGION: ${AWS_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_PATH_STYLE_ACCESS: ${S3_PATH_STYLE_ACCESS:-false}
     networks:
       - rutaviva_network
 
@@ -241,6 +320,13 @@ services:
       - SPARK_WORKER_CORES=1
       - PYSPARK_PYTHON=/opt/venv/bin/python
       - PYSPARK_DRIVER_PYTHON=/opt/venv/bin/python
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - AWS_DEFAULT_REGION=${AWS_REGION:-us-east-1}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN:-}
+      - S3_ENDPOINT=${S3_ENDPOINT:-}
+      - S3_PATH_STYLE_ACCESS=${S3_PATH_STYLE_ACCESS:-false}
     depends_on:
       - spark-master
     volumes:
@@ -308,6 +394,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      db_migrate:
+        condition: service_completed_successfully
     networks:
       - rutaviva_network
     restart: "no"
@@ -428,6 +516,7 @@ volumes:
   pg_data:
   rabbitmq_data:
   airflow_db_data:
+  airflow_reports:
   airflow_logs:
 
 networks:

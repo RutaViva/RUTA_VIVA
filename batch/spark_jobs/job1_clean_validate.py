@@ -111,7 +111,7 @@ def _read_f1_source(
             raw = spark.read.parquet(file_path)
         normalized.append(_normalize_f1_columns(raw))
 
-    # Unificamos todos los DataFrames normalizados en uno solo, permitiendo columnas faltantes 
+    # Unificamos todos los DataFrames normalizados en uno solo, permitiendo columnas faltantes
     # para cumplir con el requisito de esquema unificado a lo largo de los años
     result = normalized[0]
     for dataframe in normalized[1:]:
@@ -134,9 +134,9 @@ def _prepare_trips(raw: DataFrame) -> DataFrame:
         F.col("total_amount").cast("double"),
     ]
 
-    # Agregamos las columnas de coordenadas y extra, asegurándonos de que estén presentes en el DataFrame final, 
+    # Agregamos las columnas de coordenadas y extra, asegurándonos de que estén presentes en el DataFrame final,
     # incluso si no existen en el DataFrame original
-    
+
     for coordinate in (
         "pickup_longitude",
         "pickup_latitude",
@@ -150,7 +150,7 @@ def _prepare_trips(raw: DataFrame) -> DataFrame:
         )
 
     # Agregamos la columna "extra" si está presente, o una columna nula si no lo está
-    
+
     columns.append(
         F.col("extra").cast("double")
         if "extra" in raw.columns
@@ -158,7 +158,7 @@ def _prepare_trips(raw: DataFrame) -> DataFrame:
     )
 
     # Hacemos lo mismo para las columnas de zona de recogida y entrega, y agregamos marcadores booleanos para indicar si estaban presentes en el DataFrame original
-    
+
     for zone_column in ("pickup_zone_id", "dropoff_zone_id"):
         marker = f"_{zone_column}_present"
         zone_present = (

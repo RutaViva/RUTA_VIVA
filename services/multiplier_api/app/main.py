@@ -7,6 +7,7 @@ _service_dir = Path(__file__).resolve().parent.parent
 if str(_service_dir) not in sys.path:
     sys.path.insert(0, str(_service_dir))
 
+from app.routers import audit, health, multiplier, trip_request, zone
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 

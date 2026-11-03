@@ -1,0 +1,161 @@
+name: CI/CD App - Microservices & ECR Deployment (RWI-65, RWI-66)
+
+on:
+  push:
+    branches: [ "main", "develop", "feature/**" ]
+    paths:
+      - "services/**"
+      - "infra/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - "docker-compose.yml"
+      - ".github/workflows/ci-cd-app.yml"
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - "services/**"
+      - "infra/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - "docker-compose.yml"
+      - ".github/workflows/ci-cd-app.yml"
+
+jobs:
+  ci-quality-gate:
+    name: CI - Linting, Secret Scan (CT-02) & Pytest
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: admin1234
+          POSTGRES_DB: rutaviva_db
+        ports:
+          - 5438:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Código Fuente
+        uses: actions/checkout@v4
+
+      - name: Instalar uv (Python Package Manager)
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Configurar Python 3.12
+        run: uv python install 3.12
+
+      - name: Instalar Dependencias del Monorepo
+        run: uv sync --all-extras --dev
+
+      - name: Escaneo Preventivo de Secretos y Credenciales Expuestas (CT-02)
+        run: |
+          echo "=========================================================="
+          echo "Ejecutando auditoría de seguridad CT-02 contra secretos..."
+          echo "=========================================================="
+          # 1. Validar que no existan llaves privadas o certificados RSA embebidos
+          if grep -rEi "BEGIN (RSA|OPENSSH|EC|DSA|PGP)? PRIVATE KEY" services/ infra/ .github/; then
+            echo "ERROR CRÍTICO [CT-02]: Llave privada detectada en el repositorio."
+            exit 1
+          fi
+
+          # 2. Validar que no existan Access Keys de AWS activas
+          if grep -rE "AKIA[0-9A-Z]{16}" services/ infra/ .github/; then
+            echo "ERROR CRÍTICO [CT-02]: AWS Access Key ID detectada."
+            exit 1
+          fi
+
+          # 3. Validar patrones de tokens y passwords en duro
+          if grep -rEi "(password|secret_key|api_key|token)\s*=\s*['\"][A-Za-z0-9+/=]{20,}['\"]" services/ --exclude-dir="tests"; then
+            echo "ERROR CRÍTICO [CT-02]: Se detectaron credenciales o tokens de alta entropía en código productivo."
+            exit 1
+          fi
+
+          echo "✅ Escaneo CT-02 superado: 0 secretos o credenciales expuestas."
+
+      - name: Linter & Calidad de Código (Ruff)
+        run: |
+          uv run ruff check services/
+
+      - name: Inicializar Esquema en PostgreSQL
+        env:
+          DATABASE_URL: postgresql+psycopg://admin:admin1234@localhost:5438/rutaviva_db
+        run: |
+          sudo apt-get install -y postgresql-client
+          PGPASSWORD=admin1234 psql -h localhost -p 5438 -U admin -d rutaviva_db -f infra/init.sql
+
+      - name: Ejecutar Pruebas Unitarias de Microservicios (Pytest)
+        env:
+          DATABASE_URL: postgresql+psycopg://admin:admin1234@localhost:5438/rutaviva_db
+          RABBITMQ_URL: amqp://admin:admin1234@localhost:5672/
+          AUDITOR_API_KEY: auditor-secret-token
+        run: |
+          uv run pytest services/ -v --junitxml=junit-app.xml
+
+      - name: Validar Sintaxis de Docker Compose
+        run: |
+          docker compose config --quiet
+
+  cd-deploy-ecr:
+    name: CD - Build & Push Docker Images to AWS ECR
+    needs: [ci-quality-gate]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Código Fuente
+        uses: actions/checkout@v4
+
+      - name: Configurar AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      - name: Login en Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build & Push Imagen Docker: multiplier-api
+        uses: docker/build-push-action@v5
+        with:
+          context: services/multiplier_api
+          file: services/multiplier_api/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/rutaviva-multiplier-api:${{ github.sha }}
+            ${{ steps.login-ecr.outputs.registry }}/rutaviva-multiplier-api:latest
+
+      - name: Build & Push Imagen Docker: pressure-worker
+        uses: docker/build-push-action@v5
+        with:
+          context: services/pressure_worker
+          file: services/pressure_worker/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/rutaviva-pressure-worker:${{ github.sha }}
+            ${{ steps.login-ecr.outputs.registry }}/rutaviva-pressure-worker:latest
+
+      - name: Resumen de Despliegue en ECR
+        run: |
+          echo "=========================================================="
+          echo "✅ Despliegue completado con éxito en Amazon ECR"
+          echo "Registry: ${{ steps.login-ecr.outputs.registry }}"
+          echo "Imágenes publicadas:"
+          echo "  - rutaviva-multiplier-api:${{ github.sha }}"
+          echo "  - rutaviva-multiplier-api:latest"
+          echo "  - rutaviva-pressure-worker:${{ github.sha }}"
+          echo "  - rutaviva-pressure-worker:latest"
+          echo "=========================================================="

@@ -2,11 +2,16 @@
 import datetime
 import random
 import time
-from typing import Optional, Tuple
+
 from config import (
-    LAT_MIN, LAT_MAX, LON_MIN, LON_MAX,
-    VELOCIDAD_MIN_KMH, VELOCIDAD_MAX_KMH,
-    PROBABILIDADES_TRANSICION, ESTADOS_OPERATIVOS,
+    ESTADOS_OPERATIVOS,
+    LAT_MAX,
+    LAT_MIN,
+    LON_MAX,
+    LON_MIN,
+    PROBABILIDADES_TRANSICION,
+    VELOCIDAD_MAX_KMH,
+    VELOCIDAD_MIN_KMH,
 )
 from zone_locator import ZoneLocator
 
@@ -19,7 +24,7 @@ class Vehiculo:
         latitude: float,
         longitude: float,
         status: str,
-        zone_locator: Optional[ZoneLocator] = None,
+        zone_locator: ZoneLocator | None = None,
     ):
         self.id = vehicle_id
         self.zone_id = zone_id
@@ -43,7 +48,7 @@ class Vehiculo:
     def marcar_offline_si_sin_telemetria(
         self,
         tiempo_limite: float,
-        ahora: Optional[float] = None,
+        ahora: float | None = None,
     ) -> bool:
         """Marca offline una sola vez cuando vence el plazo desde el último reporte."""
         if self._sin_reporte_marcado_offline:
@@ -105,7 +110,7 @@ class Vehiculo:
                 self.estado = estado_destino
                 return
 
-    def to_payload(self, override_coords: Optional[Tuple[float, float]] = None) -> dict:
+    def to_payload(self, override_coords: tuple[float, float] | None = None) -> dict:
         """
         Serializa el estado actual para enviarlo por RabbitMQ.
         Permite sobrescribir coordenadas en caso de inyección de defectos (fuera de ciudad).
@@ -119,5 +124,5 @@ class Vehiculo:
             "zone_id": self.zone_id,
             "lon": round(lon, 6),
             "status": self.estado,
-            "last_seen_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "last_seen_at": datetime.datetime.now(datetime.UTC).isoformat(),
         }

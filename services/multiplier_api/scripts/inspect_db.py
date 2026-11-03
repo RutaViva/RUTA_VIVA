@@ -1,9 +1,8 @@
 # scripts/inspect_db.py
 # Lista tablas y columnas de la base a la que apunta DATABASE_URL.
 # Sirve para comprobar la conexión y alinear los modelos con el seed.
-from sqlalchemy import inspect
-
 from app.core.database import engine
+from sqlalchemy import inspect
 
 inspector = inspect(engine)
 for table in inspector.get_table_names():

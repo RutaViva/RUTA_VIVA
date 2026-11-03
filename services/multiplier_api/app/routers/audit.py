@@ -1,12 +1,12 @@
 # app/routers/audit.py
 import os
 import uuid
-from fastapi import APIRouter, Depends, Header, HTTPException, Path, status
-from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.schemas.audit import FareAuditResponse
 from app.services import audit_service
+from fastapi import APIRouter, Depends, Header, HTTPException, Path, status
+from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/audit", tags=["audit"])
 

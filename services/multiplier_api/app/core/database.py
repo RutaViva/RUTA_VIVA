@@ -1,8 +1,7 @@
 # app/core/database.py
+from app.core.config import settings
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
-
-from app.core.config import settings
 
 # pool_pre_ping verifica la conexión antes de usarla,
 # así una conexión muerta no rompe la primera petición.

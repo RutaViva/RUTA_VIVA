@@ -17,39 +17,50 @@ Instrucciones para levantar el entorno de desarrollo local de RutaViva.
 
 ---
 
-## 2. Paso a Paso
+## 2. Inicializar el stack con Docker Compose
 
-### 1. Iniciar Infraestructura (PostgreSQL + RabbitMQ)
-```bash
-docker compose up -d
-```
-* PostgreSQL escuchando en el puerto `5438`.
-* RabbitMQ en `5672` (Consola Web: `http://localhost:15672`, admin / admin1234).
+1. Copia `.env.example` a `.env` y completa las variables requeridas para
+   PostgreSQL, Airflow y el almacenamiento S3. Compose crea la URL de
+   migraciones usando el hostname interno `db`; usa una contraseña de
+   PostgreSQL compatible con URL (se recomiendan caracteres hexadecimales).
+   Para S3 local, configura también
+   `S3_ENDPOINT`, `S3_PATH_STYLE_ACCESS` y las credenciales correspondientes.
+2. Valida la configuración y levanta el proyecto:
 
-### 2. Ejecutar Migraciones de Base de Datos
-```bash
-uv run alembic upgrade head
-```
+   ```bash
+   docker compose config -q
+   docker compose up --build -d
+   docker compose ps
+   ```
 
-### 3. Poblar Datos Base (Seed CLI)
-```bash
-uv run python -m services.seed_cli.app.main --drivers 150
-```
+   Compose aplica automáticamente las migraciones (`db_migrate`) y carga datos
+   iniciales (`seed_runner`) antes de los servicios que los necesitan. El seed
+   usa 8000 conductores/vehículos por defecto; puedes definir
+   `SEED_DRIVERS` y `SEED_VEHICLES` en `.env` para ajustar el tamaño en una
+   prueba. El seed no borra datos existentes por defecto; no ejecutes
+   `docker compose down -v` salvo que quieras eliminar los volúmenes y sus
+   datos. El simulador de solicitudes espera a que el healthcheck de la API
+   responda correctamente.
+3. Comprueba los servicios y sus logs cuando alguno no aparezca como
+   `healthy`/`running`:
 
-### 4. Iniciar el Simulador de Telemetría
-```bash
-uv run python -m services.telemetry_simulator.app.telemetry_generator
-```
+   ```bash
+   docker compose ps -a
+   docker compose logs --tail=100 db_migrate seed_runner airflow-api-server
+   ```
 
-### 5. Iniciar la API de Multiplicador
-```bash
-uv run uvicorn services.multiplier_api.app.main:app --host 0.0.0.0 --port 8000 --reload
-```
-Documentación Swagger interactiva: [http://localhost:8000/docs](http://localhost:8000/docs).
+   PostgreSQL escucha en `localhost:5438`, RabbitMQ en `localhost:5672`
+   (consola `http://localhost:15672`), API en `http://localhost:8000/docs`,
+   Airflow en `http://localhost:8081` y Spark UI en `http://localhost:8080`.
+   Airflow debe tener fuentes F1/F3/F7 disponibles en landing o en S3 y los
+   archivos de zonas requeridos por Job 2 antes de ejecutar el DAG mensual.
 
-### 6. Iniciar el Servidor de Documentación (Docusaurus)
+## 3. Documentación del proyecto
+
+Inicia Docusaurus desde el directorio `documentation`:
+
 ```bash
 cd documentation
 npm run start
 ```
-Abre en tu navegador: [http://localhost:3000](http://localhost:3000).
+Abre [http://localhost:3000](http://localhost:3000).

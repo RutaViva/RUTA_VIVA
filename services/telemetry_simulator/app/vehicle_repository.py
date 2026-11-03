@@ -1,8 +1,7 @@
 from typing import TypedDict
 
-from sqlalchemy import create_engine, text
-
 from config import DATABASE_URL, ESTADOS
+from sqlalchemy import create_engine, text
 
 
 class EstadoInicialVehiculo(TypedDict):

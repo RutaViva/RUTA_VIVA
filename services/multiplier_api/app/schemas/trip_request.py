@@ -1,7 +1,7 @@
 # app/schemas/trip_request.py
 import uuid
 from datetime import datetime
-from typing import Optional
+
 from pydantic import BaseModel, Field, model_validator
 
 
@@ -11,13 +11,13 @@ class TripCreateRequest(BaseModel):
     Permite tanto el envío directo de 'base_fare' como el cálculo automático
     por distancia y tiempo según la Regla de Negocio RN-01.
     """
-    zone_id: Optional[int] = Field(None, ge=1, le=265, description="ID de la zona de origen del viaje (1-265)")
-    origin_zone_id: Optional[int] = Field(None, ge=1, le=265, description="Alias de zone_id (zona de origen)")
-    base_fare: Optional[float] = Field(None, gt=0, description="Tarifa base fija estimada para el viaje en USD")
-    passenger_id: Optional[uuid.UUID] = Field(None, description="UUID del pasajero que solicita el servicio")
-    destination_zone_id: Optional[int] = Field(None, ge=1, le=265, description="Zona de destino del viaje")
-    estimated_distance_km: Optional[float] = Field(None, ge=0, description="Distancia estimada en kilómetros")
-    estimated_duration_min: Optional[float] = Field(None, ge=0, description="Duración estimada en minutos")
+    zone_id: int | None = Field(None, ge=1, le=265, description="ID de la zona de origen del viaje (1-265)")
+    origin_zone_id: int | None = Field(None, ge=1, le=265, description="Alias de zone_id (zona de origen)")
+    base_fare: float | None = Field(None, gt=0, description="Tarifa base fija estimada para el viaje en USD")
+    passenger_id: uuid.UUID | None = Field(None, description="UUID del pasajero que solicita el servicio")
+    destination_zone_id: int | None = Field(None, ge=1, le=265, description="Zona de destino del viaje")
+    estimated_distance_km: float | None = Field(None, ge=0, description="Distancia estimada en kilómetros")
+    estimated_duration_min: float | None = Field(None, ge=0, description="Duración estimada en minutos")
 
     @model_validator(mode="after")
     def validate_zone_and_fare(self) -> "TripCreateRequest":

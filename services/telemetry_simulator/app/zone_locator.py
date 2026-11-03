@@ -1,8 +1,8 @@
-import geopandas as gpd
-from shapely.geometry import Point
-
 from pathlib import Path
+
+import geopandas as gpd
 from config import PROJECT_ROOT
+from shapely.geometry import Point
 
 _candidates = [
     Path("/app/data/shapefiles/taxi_zones.shp"),

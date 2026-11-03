@@ -1,13 +1,12 @@
 # defects.py
 import random
 from dataclasses import dataclass
-from typing import List, Tuple
 
 from config import (
-    OUTSIDE_MIN_LAT,
     OUTSIDE_MAX_LAT,
-    OUTSIDE_MIN_LON,
     OUTSIDE_MAX_LON,
+    OUTSIDE_MIN_LAT,
+    OUTSIDE_MIN_LON,
 )
 
 
@@ -18,7 +17,7 @@ class DefectPlan:
 
 
 def plan_defects(
-    vehicle_ids: List[str],
+    vehicle_ids: list[str],
     silent_pct: float,
     out_of_city_pct: float,
     rng: random.Random = None,
@@ -48,7 +47,7 @@ def plan_defects(
     return DefectPlan(silent_ids=silent_ids, out_of_city_ids=out_of_city_ids)
 
 
-def out_of_city_position(rng: random.Random = None) -> Tuple[float, float]:
+def out_of_city_position(rng: random.Random = None) -> tuple[float, float]:
     """Genera coordenadas válidas en formato pero fuera de los límites de NYC."""
     if rng is None:
         rng = random.Random()
