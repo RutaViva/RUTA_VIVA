@@ -21,6 +21,16 @@ Este registro documenta las decisiones técnicas fundamentales adoptadas para la
 
 ---
 
+### ADR-0006: Airflow con LocalExecutor
+* **Estado**: Reemplazado por ADR-0001
+* **Contexto**: El despliegue actual ejecuta un pipeline mensual secuencial y tareas periódicas con volumen/concurrencia limitados; Spark ya distribuye el procesamiento pesado en sus propios workers.
+* **Decisión**: Se propuso usar `LocalExecutor` para las tareas Airflow y mantener una base PostgreSQL dedicada como metastore, eliminando el broker y el worker de Celery.
+* **Alternativas Descartadas**:
+  * *CeleryExecutor*: Añade Redis, workers y operación distribuida que no se justifica para el nivel de concurrencia actual.
+* **Consecuencias**: Esta opción reducía servicios, pero quedó descartada al restaurarse `CeleryExecutor` para distribuir las tareas Airflow entre workers.
+
+---
+
 ### ADR-0002: RabbitMQ como Broker de Mensajería
 * **Estado**: Aceptado
 * **Contexto**: 8,000 vehículos transmiten telemetría cada 15 segundos (~533 mensajes/segundo sostenidos, con picos de solicitudes de hasta 5,000 req/min).

@@ -40,6 +40,7 @@ flowchart TD
 | `GET` | `/zones/{zone_id}` | Apps / Ops | Consulta catálogo y metadata de una zona | `{"zone_id": 1, ...}` (200) |
 | `GET` | `/zones/{zone_id}/multiplier` | Pasajeros | Multiplicador de tarifa dinámico vigente | `{"multiplier": 1.25, ...}` (200) |
 | `POST` | `/trip-requests` | Pasajeros / Simulator | Crea solicitud, fija multiplicador y audita | `{"trip_id": "...", ...}` (201) |
+| `POST` | `/trip-requests/{trip_id}/complaints` | Pasajero / Operaciones | Registra una queja categorizada sin datos personales ni texto libre | `{"complaint_id": "...", "category": "service", ...}` (201) |
 | `GET` | `/audit/{trip_id}` | Auditor Interno | Reconstruye el cálculo exacto de la tarifa | `{"base_fare": 15.0, ...}` (200) |
 
 ---
@@ -83,6 +84,25 @@ sequenceDiagram
   API-->>ALB: detalle inmutable para reconstrucción de tarifa
   ALB-->>AUD: respuesta 200 OK
 ```
+
+### 3.3 Queja de una solicitud (`POST /trip-requests/{trip_id}/complaints`)
+
+El cuerpo acepta únicamente una categoría: `service`, `fare`, `safety` u `other`.
+El endpoint valida que exista la solicitud; PostgreSQL genera `complaint_id` y
+`created_at`. No se reciben notas, nombres ni otros datos personales. Si la
+solicitud no existe, la API responde `404`; una categoría no permitida o campos
+adicionales se rechazan con `422`.
+
+La tabla `service_complaint` se crea en la base operacional existente mediante
+una migración Alembic. Antes de desplegar la API, aplica la migración contra la
+base configurada:
+
+```powershell
+uv run --locked alembic upgrade head
+```
+
+RN-11 cuenta cada registro por mes de `created_at` y distrito de origen
+asociado a `trip_id`.
 
 ---
 

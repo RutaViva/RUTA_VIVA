@@ -9,7 +9,9 @@ engine = create_engine(
     settings.database_url,
     pool_size=10,
     max_overflow=20,
-    pool_pre_ping=True,
+    pool_timeout=60, # Segundos a esperar antes de lanzar TimeoutError
+    pool_recycle=1800, # Recicla conexiones tras 30 min (evita caídas por inactividad)
+    pool_pre_ping=True, # Comprueba que la conexión siga viva antes de usarla
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
