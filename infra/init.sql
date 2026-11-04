@@ -116,13 +116,22 @@ CREATE TABLE IF NOT EXISTS fare_audit (
     rule_version_id INTEGER NOT NULL REFERENCES tariff_rule_version(rule_version_id)
 );
 
+-- 14. Quejas Operacionales de Servicio (HU / F5)
+CREATE TABLE IF NOT EXISTS service_complaint (
+    complaint_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    trip_id      UUID NOT NULL REFERENCES trip_request(trip_id),
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    category     TEXT NOT NULL CHECK (category IN ('service', 'fare', 'safety', 'other'))
+);
+
 -- Índices de Alto Rendimiento
-CREATE INDEX IF NOT EXISTS ix_vehicle_driver        ON vehicle(driver_id);
-CREATE INDEX IF NOT EXISTS ix_license_driver        ON license(driver_id);
-CREATE INDEX IF NOT EXISTS ix_sanction_driver       ON sanction(driver_id);
-CREATE INDEX IF NOT EXISTS ix_vehicle_state_zone    ON vehicle_state(zone_id, status);
-CREATE INDEX IF NOT EXISTS ix_special_event_zone    ON special_event(zone_id, starts_at, ends_at);
-CREATE INDEX IF NOT EXISTS ix_trip_request_zone_ts  ON trip_request(zone_id, requested_at);
+CREATE INDEX IF NOT EXISTS ix_vehicle_driver           ON vehicle(driver_id);
+CREATE INDEX IF NOT EXISTS ix_license_driver           ON license(driver_id);
+CREATE INDEX IF NOT EXISTS ix_sanction_driver          ON sanction(driver_id);
+CREATE INDEX IF NOT EXISTS ix_vehicle_state_zone       ON vehicle_state(zone_id, status);
+CREATE INDEX IF NOT EXISTS ix_special_event_zone       ON special_event(zone_id, starts_at, ends_at);
+CREATE INDEX IF NOT EXISTS ix_trip_request_zone_ts     ON trip_request(zone_id, requested_at);
+CREATE INDEX IF NOT EXISTS ix_service_complaint_created ON service_complaint(created_at);
 
 -- Registro de Versión de Migraciones Alembic
 CREATE TABLE IF NOT EXISTS alembic_version (
@@ -130,5 +139,5 @@ CREATE TABLE IF NOT EXISTS alembic_version (
 );
 
 INSERT INTO alembic_version (version_num)
-VALUES ('1c747396d464')
-ON CONFLICT (version_num) DO NOTHING;
+VALUES ('7e2c9f4b1a63')
+ON CONFLICT (version_num) DO UPDATE SET version_num = '7e2c9f4b1a63';

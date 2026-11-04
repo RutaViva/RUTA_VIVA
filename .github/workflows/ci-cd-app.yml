@@ -91,6 +91,7 @@ jobs:
         run: |
           sudo apt-get install -y postgresql-client
           PGPASSWORD=admin1234 psql -h localhost -p 5438 -U admin -d rutaviva_db -f infra/init.sql
+          uv run alembic upgrade head
 
       - name: Ejecutar Pruebas Unitarias de Microservicios (Pytest)
         env:
@@ -102,7 +103,11 @@ jobs:
 
       - name: Validar Sintaxis de Docker Compose
         run: |
+          cp .env.example .env
+          sed -i 's/=[[:space:]]*$/=ci_dummy_value/g' .env
+          sed -i 's/replace-with-[a-zA-Z0-9-]*/ci_dummy_value/g' .env
           docker compose config --quiet
+          rm .env
 
   cd-deploy-ecr:
     name: CD - Build & Push Docker Images to AWS ECR
@@ -128,25 +133,41 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build & Push Imagen Docker: multiplier-api
+      - name: "Build & Push Imagen Docker: multiplier-api"
         uses: docker/build-push-action@v5
         with:
           context: services/multiplier_api
           file: services/multiplier_api/Dockerfile
           push: true
           tags: |
+            ${{ steps.login-ecr.outputs.registry }}/ruta-viva/multiplier_api:${{ github.sha }}
+            ${{ steps.login-ecr.outputs.registry }}/ruta-viva/multiplier_api:latest
             ${{ steps.login-ecr.outputs.registry }}/rutaviva-multiplier-api:${{ github.sha }}
             ${{ steps.login-ecr.outputs.registry }}/rutaviva-multiplier-api:latest
 
-      - name: Build & Push Imagen Docker: pressure-worker
+      - name: "Build & Push Imagen Docker: pressure-worker"
         uses: docker/build-push-action@v5
         with:
           context: services/pressure_worker
           file: services/pressure_worker/Dockerfile
           push: true
           tags: |
+            ${{ steps.login-ecr.outputs.registry }}/ruta-viva/pressure_worker:${{ github.sha }}
+            ${{ steps.login-ecr.outputs.registry }}/ruta-viva/pressure_worker:latest
             ${{ steps.login-ecr.outputs.registry }}/rutaviva-pressure-worker:${{ github.sha }}
             ${{ steps.login-ecr.outputs.registry }}/rutaviva-pressure-worker:latest
+
+      - name: "Build & Push Imagen Docker: telemetry-simulator"
+        uses: docker/build-push-action@v5
+        with:
+          context: services/telemetry_simulator
+          file: services/telemetry_simulator/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/ruta-viva/telemetry_simulator:${{ github.sha }}
+            ${{ steps.login-ecr.outputs.registry }}/ruta-viva/telemetry_simulator:latest
+            ${{ steps.login-ecr.outputs.registry }}/rutaviva-telemetry-simulator:${{ github.sha }}
+            ${{ steps.login-ecr.outputs.registry }}/rutaviva-telemetry-simulator:latest
 
       - name: Resumen de Despliegue en ECR
         run: |
@@ -154,8 +175,7 @@ jobs:
           echo "✅ Despliegue completado con éxito en Amazon ECR"
           echo "Registry: ${{ steps.login-ecr.outputs.registry }}"
           echo "Imágenes publicadas:"
-          echo "  - rutaviva-multiplier-api:${{ github.sha }}"
-          echo "  - rutaviva-multiplier-api:latest"
-          echo "  - rutaviva-pressure-worker:${{ github.sha }}"
-          echo "  - rutaviva-pressure-worker:latest"
+          echo "  - ruta-viva/multiplier_api:${{ github.sha }} / rutaviva-multiplier-api"
+          echo "  - ruta-viva/pressure_worker:${{ github.sha }} / rutaviva-pressure-worker"
+          echo "  - ruta-viva/telemetry_simulator:${{ github.sha }} / rutaviva-telemetry-simulator"
           echo "=========================================================="
