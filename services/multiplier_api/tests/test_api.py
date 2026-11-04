@@ -118,3 +118,78 @@ def test_concurrent_burst_requests_ca13():
         assert resp.status_code == 201
         assert resp.json()["multiplier"] >= 1.0
 
+
+def test_underserved_zones_rf05():
+    """
+    RF-05 / RN-08:
+    Detectar zonas desatendidas (tiempo de espera > 12 min en 3 intervalos consecutivos)
+    y sugerir redistribución de flota a conductores.
+    """
+    from datetime import UTC, datetime, timedelta
+    from app.core.database import SessionLocal
+    from app.models.zone_state import ZoneStateHistory
+
+    db = SessionLocal()
+    now_utc = datetime.now(UTC)
+    # Insertar 3 intervalos consecutivos con espera estimada > 12 min para la zona 10
+    for i in range(3):
+        h = ZoneStateHistory(
+            zone_id=10,
+            interval_start=now_utc - timedelta(seconds=30 * (3 - i)),
+            requests=50,
+            free_vehicles=1,
+            pressure_index=5.0,
+            multiplier=1.8,
+            estimated_wait_minutes=15.0 + i,
+        )
+        db.merge(h)
+    db.commit()
+    db.close()
+
+    resp = client.get("/zones/underserved")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data, list)
+    # Verificar que la zona 10 aparece en la lista de zonas desatendidas
+    matched = [z for z in data if z["zone_id"] == 10]
+    assert len(matched) == 1
+    assert matched[0]["consecutive_intervals"] >= 3
+    assert matched[0]["avg_estimated_wait_minutes"] >= 12.0
+    assert matched[0]["recommended_additional_vehicles"] > 0
+
+
+def test_recalculate_tariffs_period_rf08():
+    """
+    RF-08 / RNF-06:
+    Permitir versionar las reglas de tarifa y recalcular un periodo con una versión específica.
+    Protegido por rol de auditor.
+    """
+    # 1. Crear un viaje para garantizar que hay transacciones en el periodo
+    create_resp = client.post("/trip-requests", json={"zone_id": 161, "base_fare": 20.0})
+    assert create_resp.status_code == 201
+
+    payload = {
+        "start_date": "2020-01-01T00:00:00Z",
+        "end_date": "2030-01-01T00:00:00Z",
+        "rule_version_id": 1,
+    }
+
+    # 2. Sin credenciales de auditor -> 403 Forbidden
+    unauth_resp = client.post("/audit/recalculate", json=payload)
+    assert unauth_resp.status_code == 403
+
+    # 3. Con credenciales válidas -> 200 OK con simulación comparativa
+    auth_resp = client.post(
+        "/audit/recalculate",
+        json=payload,
+        headers={"X-Auditor-Role": "auditor"},
+    )
+    assert auth_resp.status_code == 200
+    data = auth_resp.json()
+    assert data["rule_version_id"] == 1
+    assert data["total_trips_evaluated"] >= 1
+    assert data["original_total_revenue"] > 0
+    assert data["recalculated_total_revenue"] > 0
+    assert "percentage_change" in data
+
+

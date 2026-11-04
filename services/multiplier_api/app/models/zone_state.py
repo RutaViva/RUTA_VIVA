@@ -18,3 +18,18 @@ class ZoneState(Base):
     multiplier: Mapped[Decimal] = mapped_column(Numeric(3, 2), default=Decimal("1.00"))
     free_vehicles: Mapped[int] = mapped_column(Integer, default=0)
     requests_last_10min: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class ZoneStateHistory(Base):
+    """Histórico de estados de presión y tiempos de espera para auditoría y zonas desatendidas (RN-08)."""
+
+    __tablename__ = "zone_state_history"
+
+    zone_id: Mapped[int] = mapped_column(primary_key=True)
+    interval_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
+    requests: Mapped[int] = mapped_column(Integer)
+    free_vehicles: Mapped[int] = mapped_column(Integer)
+    pressure_index: Mapped[float] = mapped_column(Float)
+    multiplier: Mapped[Decimal] = mapped_column(Numeric(3, 2))
+    estimated_wait_minutes: Mapped[float | None] = mapped_column(Float, nullable=True)
+
