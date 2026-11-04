@@ -83,7 +83,7 @@ data "aws_ami" "amazon_linux_arm" {
 
 resource "aws_instance" "nat_instance" {
   ami                         = data.aws_ami.amazon_linux_arm.id
-  instance_type               = "t4g.medium"
+  instance_type               = "t4g.small"
   subnet_id                   = aws_subnet.public[0].id
   vpc_security_group_ids      = [aws_security_group.nat.id]
   iam_instance_profile        = aws_iam_instance_profile.data_services.name
