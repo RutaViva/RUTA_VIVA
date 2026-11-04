@@ -1,11 +1,20 @@
 # app/routers/zones.py
 from app.core.database import get_db
-from app.schemas.zone import NameZone
+from app.schemas.zone import NameZone, UnderservedZoneResponse
 from app.services import zone_service
 from fastapi import APIRouter, Depends, HTTPException, Path
 from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/zones", tags=["zones"])
+
+
+@router.get("/underserved", response_model=list[UnderservedZoneResponse])
+def get_underserved_zones(db: Session = Depends(get_db)):
+    """
+    Detecta zonas desatendidas (RN-08): espera estimada > 12 min durante 3 intervalos consecutivos.
+    Emite recomendaciones de vehículos adicionales a despachar (RF-05).
+    """
+    return zone_service.get_underserved_zones(db)
 
 
 @router.get("/{zone_id}", response_model=NameZone)

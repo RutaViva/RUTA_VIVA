@@ -3,7 +3,11 @@ import os
 import uuid
 
 from app.core.database import get_db
-from app.schemas.audit import FareAuditResponse
+from app.schemas.audit import (
+    FareAuditResponse,
+    RecalculatePeriodRequest,
+    RecalculatePeriodResponse,
+)
 from app.services import audit_service
 from fastapi import APIRouter, Depends, Header, HTTPException, Path, status
 from sqlalchemy.orm import Session
@@ -57,3 +61,26 @@ def get_trip_fare_audit(
             detail=f"No se encontró registro de auditoría para el viaje {trip_id}.",
         )
     return result
+
+
+@router.post(
+    "/recalculate",
+    response_model=RecalculatePeriodResponse,
+    dependencies=[Depends(verify_auditor_credentials)],
+)
+def recalculate_tariffs_for_period(
+    payload: RecalculatePeriodRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Recalcula retrospectivamente las tarifas de un periodo bajo una versión específica de reglas (RF-08).
+    Permite evaluar el impacto financiero y la simulación tarifaria sin mutar datos operacionales.
+    Protegido por credenciales de rol auditor (RNF-06).
+    """
+    return audit_service.recalculate_period_tariffs(
+        db,
+        start_date=payload.start_date,
+        end_date=payload.end_date,
+        rule_version_id=payload.rule_version_id,
+    )
+
