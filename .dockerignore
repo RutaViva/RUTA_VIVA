@@ -20,6 +20,9 @@ seeder_error.log
 # Entorno de desarrollo
 .git/
 .gitignore
+.env
+.env.*
+!.env.example
 .vscode/
 .idea/
 
@@ -30,3 +33,5 @@ docker-compose.yml
 
 # Datos que se copian explícitamente si es necesario
 # services/seed_cli/app/data/geojson/
+
+batch/data/local/

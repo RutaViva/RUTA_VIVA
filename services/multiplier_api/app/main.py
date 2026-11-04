@@ -11,6 +11,10 @@ from app.routers import audit, health, multiplier, trip_request, zone
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.routers import (
+    service_complaint,
+)
+
 app = FastAPI(
     title="RutaViva Multiplier & Mobility API",
     description="API de cotización de tarifas dinámicas, registro de viajes y auditoría transaccional.",
@@ -29,4 +33,5 @@ app.include_router(health.router)
 app.include_router(zone.router)
 app.include_router(multiplier.router)
 app.include_router(trip_request.router)
+app.include_router(service_complaint.router)
 app.include_router(audit.router)

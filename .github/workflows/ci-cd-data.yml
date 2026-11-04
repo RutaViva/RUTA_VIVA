@@ -68,9 +68,9 @@ jobs:
       - name: Validación de Sintaxis y Compilación AST (CI/CD II)
         run: |
           echo "Validando sintaxis de scripts PySpark, DAGs y Reportes..."
-          python -m py_compile batch/spark-jobs/common/*.py \
-                               batch/spark-jobs/job1_clean_validate/*.py \
-                               batch/spark-jobs/job2_enrich_model/*.py \
+          python -m py_compile batch/spark_jobs/common/*.py \
+                               batch/spark_jobs/job1_clean_validate.py \
+                               batch/spark_jobs/job2_enrich_model.py \
                                batch/reports/*.py \
                                batch/dags/*.py \
                                batch/tests/*.py
@@ -82,7 +82,6 @@ jobs:
 
       - name: Ejecutar Suite de Pruebas PySpark (Unit & Integration)
         run: |
-          ln -sfn spark-jobs batch/spark_jobs || true
           uv run pytest batch/tests/ -v --junitxml=junit-data.xml
 
   cd-data-deploy:
@@ -116,7 +115,7 @@ jobs:
           SPARK_JOBS_BUCKET: ${{ secrets.SPARK_JOBS_BUCKET }}
         run: |
           echo "Sincronizando Spark jobs hacia s3://${SPARK_JOBS_BUCKET}/spark-jobs/..."
-          aws s3 sync batch/spark-jobs/ "s3://${SPARK_JOBS_BUCKET}/spark-jobs/" --delete
+          aws s3 sync batch/spark_jobs/ "s3://${SPARK_JOBS_BUCKET}/spark-jobs/" --delete
 
       - name: Resumen de Despliegue de Datos
         run: |

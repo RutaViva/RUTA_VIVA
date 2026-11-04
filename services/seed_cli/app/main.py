@@ -88,22 +88,30 @@ def run_seeder(drivers_count: int, clean_first: bool, target_vehicles: int | Non
             max_vehicles_per_driver=2,
             target_vehicles=target_vehicles,
         )
-        vehicle_states_data = generate_driver_vehicle_states(
-            [
-                {
-                    "driver_id": vehicle["driver_id"],
-                    "vehicle_id": vehicle["vehicle_id"],
-                }
-                for vehicle in vehicles_data
-            ],
-            zones_gdf,
-        )
 
         bulk_insert_in_chunks(session, Zone, zones_data)
         bulk_insert_in_chunks(session, Driver, drivers_data)
         bulk_insert_in_chunks(session, License, licenses_data)
         bulk_insert_in_chunks(session, Sanction, sanctions_data)
         bulk_insert_in_chunks(session, Vehicle, vehicles_data)
+
+        vehicle_ids_by_plate = dict(
+            session.execute(
+                select(Vehicle.plate, Vehicle.vehicle_id).where(
+                    Vehicle.plate.in_([vehicle["plate"] for vehicle in vehicles_data])
+                )
+            ).all()
+        )
+        vehicle_states_data = generate_driver_vehicle_states(
+            [
+                {
+                    "driver_id": vehicle["driver_id"],
+                    "vehicle_id": vehicle_ids_by_plate[vehicle["plate"]],
+                }
+                for vehicle in vehicles_data
+            ],
+            zones_gdf,
+        )
         bulk_insert_in_chunks(session, VehicleState, vehicle_states_data)
 
         # Confirmación de la Transacción
@@ -133,18 +141,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Script de Poblamiento de Datos (Seeder) para Fleet & Dynamic Pricing")
     parser.add_argument("--clean", action="store_true", default=env_clean, help="Limpia (TRUNCATE) las tablas antes de poblar.")
     parser.add_argument("--drivers", type=int, default=env_drivers, help=f"Cantidad de conductores a generar (default: {env_drivers}).")
-    parser.add_argument("--vehicles", type=int, default=env_vehicles, help="Cantidad exacta de vehículos a generar (default: igual a conductores si es 8000).")
+    parser.add_argument("--vehicles", type=int, default=env_vehicles, help="Cantidad exacta opcional de vehículos a generar.")
     parser.add_argument("--modo", type=str, default="completo", help="Modo de ejecución (para compatibilidad con Dockerfile).")
 
     args = parser.parse_args()
 
-    # Si se solicitan 8000 conductores y no se especifica --vehicles, se alinean 1 a 1 a 8000 vehículos (F4 y F6)
-    target_v = args.vehicles
-    if target_v is None and args.drivers == 8000:
-        target_v = 8000
-
     run_seeder(
         drivers_count=args.drivers,
         clean_first=args.clean,
-        target_vehicles=target_v,
+        target_vehicles=args.vehicles,
     )

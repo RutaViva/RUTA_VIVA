@@ -60,6 +60,7 @@ const sidebars = {
       collapsed: false,
       items: [
         'guias/puesta-en-marcha',
+        'guias/integracion-flujos-airflow',
         'guias/sprints-roadmap',
       ],
     },

@@ -68,7 +68,7 @@ flowchart TB
     end
 
     subgraph Analytics & Batch Processing
-        DB -.-> SparkJobs[batch/spark-jobs\nPySpark ETL]
+        DB -.-> SparkJobs[batch/spark_jobs\nPySpark ETL]
         Airflow[batch/dags\nAirflow Scheduler] -->|Trigger| SparkJobs
         OpenMeteo[API Externa Clima] -->|DAG Horario| Airflow
         Airflow -->|Carga weather_current| DB
@@ -194,7 +194,7 @@ erDiagram
 ### 4.7 Módulo Batch Processing (`batch/` - En desarrollo)
 - **Directorio**: `batch/`
   - `dags/`: Orquestación con Apache Airflow.
-  - `spark-jobs/`: Procesamiento distribuido con PySpark.
+  - `spark_jobs/`: Procesamiento distribuido con PySpark.
 - **Responsabilidades a implementar**:
   - **Job 1 (Clean & Validate)**: Lectura de archivos Parquet/CSV masivos de viajes históricos (NYC Yellow Taxi Trip Data F1), validación de esquemas cambiantes, eliminación de registros anómalos (tarifas negativas, distancias cero).
   - **Job 2 (Enrich & Model)**: Enriquecimiento espacial con zonas y análisis de series temporales de demanda para calibrar las tablas de reglas de tarifa.

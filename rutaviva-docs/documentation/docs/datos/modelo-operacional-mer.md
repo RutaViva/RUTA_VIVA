@@ -1,12 +1,12 @@
 ---
 id: modelo-operacional-mer
 title: Modelo Operacional (PostgreSQL)
-sidebar_label: MER Operacional (13 Tablas)
+sidebar_label: MER Operacional (14 Tablas)
 ---
 
 # Modelo Entidad-Relación Operacional (PostgreSQL)
 
-El esquema operacional contiene **13 entidades relacionales** gestionadas mediante migraciones con Alembic.
+El esquema operacional contiene **14 entidades relacionales** gestionadas mediante migraciones con Alembic.
 
 ```mermaid
 erDiagram
@@ -20,6 +20,7 @@ erDiagram
   ZONE ||--o{ TRIP_REQUEST : "origen"
   ZONE ||--o{ SPECIAL_EVENT : "afecta"
   TRIP_REQUEST ||--|| FARE_AUDIT : "audita"
+  TRIP_REQUEST ||--o{ SERVICE_COMPLAINT : "recibe"
   TARIFF_RULE_VERSION ||--o{ FARE_AUDIT : "aplicada en"
 
   DRIVER {
@@ -88,6 +89,12 @@ erDiagram
     float rain_mm_h
     int rule_version_id FK
   }
+  SERVICE_COMPLAINT {
+    uuid complaint_id PK
+    uuid trip_id FK
+    timestamp created_at
+    string category
+  }
   TARIFF_RULE_VERSION {
     int rule_version_id PK
     date valid_from
@@ -124,6 +131,7 @@ erDiagram
 | **TARIFF_RULE_VERSION**   | Reglas de tarifa con su vigencia           | Permite saber qué reglas aplicaban en una fecha y recalcular un periodo (RF-08)                                                                       | carga de reglas             | worker, API                                  |
 | **TRIP_REQUEST**          | Solicitud de viaje                         | Su `requested_at` fija el multiplicador que se cobra, aunque la asignación ocurra después (RN-07)                                                     | API                         | API, auditoría                               |
 | **FARE_AUDIT**            | Cómo se calculó cada tarifa                | Registro inmutable para reconstruirla: base, multiplicador, tarifa cobrada, presión, lluvia y versión de reglas. Se conserva 24 meses (RN-12, RNF-05) | API                         | API (auditoría), Airflow (extracción diaria) |
+| **SERVICE_COMPLAINT**     | Queja asociada a una solicitud de viaje    | Permite contar quejas por mes y distrito para el reporte RN-11                                                                                         | API                         | Airflow (extracción mensual)                 |
 | **SPECIAL_EVENT**         | Evento o emergencia por zona               | Con `is_emergency` el multiplicador se fuerza a 1,0 (RN-06)                                                                                           | carga de F7                 | pressure-worker                              |
 
 ### 1. Catálogos y Reglas
@@ -159,3 +167,6 @@ erDiagram
   * `trip_id` (UUID, PK), `zone_id` (INT, FK), `requested_at` (TIMESTAMPTZ), `status` (`'created'`, `'cancelled'`, `'assigned'`).
 * **`fare_audit`**: Registro inmutable de tarificación (RN-12).
   * `trip_id` (UUID, PK, FK), `base_fare` (NUMERIC(10,2)), `multiplier` (NUMERIC(3,2)), `charged_fare` (NUMERIC(10,2)), `pressure_index` (FLOAT), `rain_mm_h` (FLOAT), `rule_version_id` (INT, FK), `degraded` (BOOLEAN).
+* **`service_complaint`**: Queja categorizada asociada a una solicitud existente.
+  * `complaint_id` (UUID, PK generado por PostgreSQL), `trip_id` (UUID, FK), `created_at` (TIMESTAMPTZ generado por PostgreSQL), `category` (`service`, `fare`, `safety`, `other`).
+  * Se registra con `POST /trip-requests/{trip_id}/complaints`; no almacena datos personales ni texto libre.

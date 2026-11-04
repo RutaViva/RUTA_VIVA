@@ -1,3 +1,82 @@
+x-airflow-common: &airflow-common
+  image: rutaviva-airflow:3.3.2
+  build:
+    context: .
+    dockerfile: batch/airflow/Dockerfile
+  env_file:
+    - ./.env
+  environment: &airflow-common-environment
+    AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+    AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+    AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/project/batch/dags
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY:?Set AIRFLOW_FERNET_KEY in .env}
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:${AIRFLOW_DB_PASSWORD:?Set AIRFLOW_DB_PASSWORD in .env}@airflow-db:5432/airflow
+    AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:${AIRFLOW_DB_PASSWORD:?Set AIRFLOW_DB_PASSWORD in .env}@airflow-db:5432/airflow
+    AIRFLOW__CELERY__BROKER_URL: redis://:@airflow-redis:6379/0
+    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-api-server:8080/execution/
+    AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW_API_JWT_SECRET:?Set AIRFLOW_API_JWT_SECRET in .env}
+    AIRFLOW__API__SECRET_KEY: ${AIRFLOW_API_SECRET_KEY:?Set AIRFLOW_API_SECRET_KEY in .env}
+    AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: "true"
+    AIRFLOW__CELERY__WORKER_CONCURRENCY: "2"
+    AIRFLOW_CONN_POSTGRES_DEFAULT: postgresql+psycopg2://${AIRFLOW_POSTGRES_USER:-airflow_reader}:${AIRFLOW_POSTGRES_PASSWORD:?Set AIRFLOW_POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-rutaviva_db}
+    AIRFLOW_CONN_SPARK_DEFAULT: spark://spark-master:7077?deploy-mode=client
+    AIRFLOW_CONN_AWS_DEFAULT: aws://?region_name=${AWS_REGION:-us-east-1}
+    AIRFLOW_POSTGRES_CONN_ID: postgres_default
+    AIRFLOW_AWS_CONN_ID: aws_default
+    AIRFLOW_TIMEZONE: ${AIRFLOW_TIMEZONE:-America/New_York}
+    BRONZE_LANDING_DIR: /opt/airflow/data/landing
+    PYTHONPATH: /opt/airflow/project:/opt/airflow/project/batch/spark_jobs
+    S3_BRONZE_PATH: ${S3_BRONZE_PATH:?Set S3_BRONZE_PATH in .env}
+    S3_SILVER_PATH: ${S3_SILVER_PATH:?Set S3_SILVER_PATH in .env}
+    S3_GOLD_PATH: ${S3_GOLD_PATH:?Set S3_GOLD_PATH in .env}
+    S3_QUARANTINE_PATH: ${S3_QUARANTINE_PATH:?Set S3_QUARANTINE_PATH in .env}
+    S3_F1_PATH: ${S3_F1_PATH:-}
+    S3_WEATHER_PATH: ${S3_WEATHER_PATH:-}
+    S3_EVENTS_PATH: ${S3_EVENTS_PATH:-}
+    S3_TRIP_REQUESTS_PATH: ${S3_TRIP_REQUESTS_PATH:-}
+    S3_SERVICE_COMPLAINTS_PATH: ${S3_SERVICE_COMPLAINTS_PATH:-}
+    S3_ZONE_STATE_HISTORY_PATH: ${S3_ZONE_STATE_HISTORY_PATH:-}
+    F1_FORMAT: ${F1_FORMAT:-csv}
+    F3_FORMAT: ${F3_FORMAT:-csv}
+    F7_FORMAT: ${F7_FORMAT:-csv}
+    TRIP_REQUESTS_FORMAT: ${TRIP_REQUESTS_FORMAT:-csv}
+    SERVICE_COMPLAINTS_FORMAT: ${SERVICE_COMPLAINTS_FORMAT:-csv}
+    ZONE_STATE_HISTORY_FORMAT: ${ZONE_STATE_HISTORY_FORMAT:-csv}
+    AWS_REGION: ${AWS_REGION:-us-east-1}
+    AWS_DEFAULT_REGION: ${AWS_REGION:-us-east-1}
+    AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+    AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+    AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
+    S3_ENDPOINT: ${S3_ENDPOINT:-}
+    S3_PATH_STYLE_ACCESS: ${S3_PATH_STYLE_ACCESS:-false}
+    SPARK_TIMEZONE: ${SPARK_TIMEZONE:-America/New_York}
+    SPARK_JARS_PACKAGES: ${SPARK_JARS_PACKAGES:-}
+    HADOOP_AWS_VERSION: ${HADOOP_AWS_VERSION:-3.5.0}
+    SPARK_EXECUTOR_PYTHON: /opt/venv/bin/python
+    REGULATORY_REPORT_DIR: /opt/airflow/reports
+  volumes: &airflow-common-volumes
+    - ./batch:/opt/airflow/project/batch:ro
+    - ./services/seed_cli:/opt/airflow/project/services/seed_cli:ro
+    - ./batch/data/landing:/opt/airflow/data/landing
+    - airflow_reports:/opt/airflow/reports
+    - airflow_logs:/opt/airflow/logs
+  networks:
+    - rutaviva_network
+  user: "${AIRFLOW_UID:-50000}:0"
+  depends_on: &airflow-common-depends-on
+    airflow-db:
+      condition: service_healthy
+    airflow-redis:
+      condition: service_healthy
+    db_migrate:
+      condition: service_completed_successfully
+    seed_runner:
+      condition: service_completed_successfully
+    airflow-db-setup:
+      condition: service_completed_successfully
+
 services:
   db:
     image: postgres:16
@@ -51,6 +130,16 @@ services:
     restart: unless-stopped
     ports:
       - "8000:8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     environment:
       - DATABASE_URL=postgresql+psycopg://admin:admin1234@db:5432/rutaviva_db
       - FRESHNESS_THRESHOLD_SECONDS=300
@@ -58,6 +147,10 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      db_migrate:
+        condition: service_completed_successfully
+      seed_runner:
+        condition: service_completed_successfully
     networks:
       - rutaviva_network
 
@@ -79,7 +172,27 @@ services:
     networks:
       - rutaviva_network
 
+  db_migrate:
+    image: rutaviva-seed:latest
+    build:
+      context: ./services/seed_cli
+      dockerfile: Dockerfile
+    container_name: rutaviva_db_migrate
+    command: ["alembic", "-c", "/app/alembic.ini", "upgrade", "head"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-rutaviva_db}
+    volumes:
+      - ./alembic.ini:/app/alembic.ini:ro
+      - ./infra/migrations:/app/infra/migrations:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - rutaviva_network
+    restart: "no"
+
   seed_runner:
+    image: rutaviva-seed:latest
     build:
       context: ./services/seed_cli
       dockerfile: Dockerfile
@@ -87,12 +200,11 @@ services:
     restart: "no"
     environment:
       - DATABASE_URL=postgresql+psycopg://admin:admin1234@db:5432/rutaviva_db
-      - SEED_DRIVERS=8000
-      - SEED_VEHICLES=8000
-      - SEED_CLEAN=true
+      - SEED_DRIVERS=${SEED_DRIVERS:-8000}
+      - SEED_CLEAN=${SEED_CLEAN:-false}
     depends_on:
-      db:
-        condition: service_healthy
+      db_migrate:
+        condition: service_completed_successfully
     networks:
       - rutaviva_network
 
@@ -134,7 +246,10 @@ services:
       - BURST_INTERVAL_SECONDS=180
       - BURST_TARGET_ZONE=161
     depends_on:
-      - multiplier_api
+      multiplier_api:
+        condition: service_healthy
+      seed_runner:
+        condition: service_completed_successfully
     networks:
       - rutaviva_network
 
@@ -149,12 +264,247 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      db_migrate:
+        condition: service_completed_successfully
     networks:
       - rutaviva_network
+      
+  spark-master:
+    image: rutaviva-spark:4.2.0
+    build:
+      context: .
+      dockerfile: batch/spark_jobs/Dockerfile
+    container_name: spark-master
+    command:
+      - /opt/spark/bin/spark-class
+      - org.apache.spark.deploy.master.Master
+      - --host
+      - spark-master
+      - --port
+      - "7077"
+      - --webui-port
+      - "8080"
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+    volumes:
+      - .:/opt/spark/work-dir
+    environment:
+      PYSPARK_PYTHON: /opt/venv/bin/python
+      PYSPARK_DRIVER_PYTHON: /opt/venv/bin/python
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_DEFAULT_REGION: ${AWS_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_PATH_STYLE_ACCESS: ${S3_PATH_STYLE_ACCESS:-false}
+    networks:
+      - rutaviva_network
+
+  spark-worker-1:
+    image: rutaviva-spark:4.2.0
+    build:
+      context: .
+      dockerfile: batch/spark_jobs/Dockerfile
+    container_name: spark-worker-1
+    command:
+      - /opt/spark/bin/spark-class
+      - org.apache.spark.deploy.worker.Worker
+      - --webui-port
+      - "8081"
+      - spark://spark-master:7077
+    environment:
+      - SPARK_WORKER_MEMORY=1G
+      - SPARK_WORKER_CORES=1
+      - PYSPARK_PYTHON=/opt/venv/bin/python
+      - PYSPARK_DRIVER_PYTHON=/opt/venv/bin/python
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - AWS_DEFAULT_REGION=${AWS_REGION:-us-east-1}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN:-}
+      - S3_ENDPOINT=${S3_ENDPOINT:-}
+      - S3_PATH_STYLE_ACCESS=${S3_PATH_STYLE_ACCESS:-false}
+    depends_on:
+      - spark-master
+    volumes:
+      - .:/opt/spark/work-dir
+    networks:
+      - rutaviva_network
+
+  airflow-db:
+    image: postgres:16
+    container_name: rutaviva_airflow_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: ${AIRFLOW_DB_PASSWORD:?Set AIRFLOW_DB_PASSWORD in .env}
+      POSTGRES_DB: airflow
+    volumes:
+      - airflow_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow -d airflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - rutaviva_network
+
+  airflow-db-setup:
+    image: postgres:16
+    container_name: rutaviva_airflow_db_setup
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        until pg_isready -h db -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"; do
+          sleep 2
+        done
+        PGPASSWORD="$$POSTGRES_PASSWORD" psql \
+          -h db \
+          -U "$$POSTGRES_USER" \
+          -d "$$POSTGRES_DB" \
+          -v ON_ERROR_STOP=1 \
+          -v reader_user="$$AIRFLOW_POSTGRES_USER" \
+          -v reader_password="$$AIRFLOW_POSTGRES_PASSWORD" \
+          -v db_name="$$POSTGRES_DB" \
+          -v owner_user="$$POSTGRES_USER" \
+          -f /scripts/create_readonly_user.sql
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-rutaviva_db}
+      AIRFLOW_POSTGRES_USER: ${AIRFLOW_POSTGRES_USER:-airflow_reader}
+      AIRFLOW_POSTGRES_PASSWORD: ${AIRFLOW_POSTGRES_PASSWORD:?Set AIRFLOW_POSTGRES_PASSWORD in .env}
+    volumes:
+      - ./infra/airflow/create_readonly_user.sql:/scripts/create_readonly_user.sql:ro
+    depends_on:
+      db:
+        condition: service_healthy
+      db_migrate:
+        condition: service_completed_successfully
+    networks:
+      - rutaviva_network
+    restart: "no"
+
+  airflow-redis:
+    image: redis:7.2-bookworm
+    container_name: rutaviva_airflow_redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - rutaviva_network
+
+  airflow-init:
+    <<: *airflow-common
+    container_name: rutaviva_airflow_init
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        mkdir -p /opt/airflow/logs
+        chown -R "${AIRFLOW_UID:-50000}:0" /opt/airflow/logs
+        exec /entrypoint airflow version
+    environment:
+      <<: *airflow-common-environment
+      _AIRFLOW_DB_MIGRATE: "true"
+      _AIRFLOW_WWW_USER_CREATE: "true"
+      _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_ADMIN_USERNAME:-airflow}
+      _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD:?Set AIRFLOW_ADMIN_PASSWORD in .env}
+    user: "0:0"
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-db-setup:
+        condition: service_completed_successfully
+    restart: "no"
+
+  airflow-api-server:
+    <<: *airflow-common
+    container_name: rutaviva_airflow_api_server
+    command: api-server
+    ports:
+      - "8081:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/api/v2/monitor/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  airflow-scheduler:
+    <<: *airflow-common
+    container_name: rutaviva_airflow_scheduler
+    command: scheduler
+    healthcheck:
+      test: ["CMD-SHELL", 'airflow jobs check --job-type SchedulerJob --hostname "$${HOSTNAME}"']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  airflow-dag-processor:
+    <<: *airflow-common
+    container_name: rutaviva_airflow_dag_processor
+    command: dag-processor
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  airflow-worker:
+    <<: *airflow-common
+    container_name: rutaviva_airflow_worker
+    command: celery worker
+    environment:
+      <<: *airflow-common-environment
+      DUMB_INIT_SETSID: "0"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'celery --app airflow.providers.celery.executors.celery_executor.app inspect ping -d "celery@$${HOSTNAME}"'
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-api-server:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  airflow-triggerer:
+    <<: *airflow-common
+    container_name: rutaviva_airflow_triggerer
+    command: triggerer
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
 
 volumes:
   pg_data:
   rabbitmq_data:
+  airflow_db_data:
+  airflow_reports:
+  airflow_logs:
 
 networks:
   rutaviva_network:
